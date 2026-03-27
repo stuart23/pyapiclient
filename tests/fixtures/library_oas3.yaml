@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: Library API
+  version: "1.0"
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /authors:
+    get:
+      summary: List authors
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Author'
+    post:
+      summary: Create author
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Author'
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+  /authors/{author_id}:
+    get:
+      parameters:
+        - name: author_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+    patch:
+      parameters:
+        - name: author_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Author'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Author'
+    delete:
+      parameters:
+        - name: author_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: deleted
+  /books:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Book'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+components:
+  schemas:
+    Author:
+      type: object
+      required: [name, email]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+    Book:
+      type: object
+      required: [title, author_id]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        author_id:
+          type: integer

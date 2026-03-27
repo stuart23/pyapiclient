@@ -1,0 +1,65 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "S2", "version": "1"},
+  "host": "legacy.example.com",
+  "basePath": "/api",
+  "schemes": ["https"],
+  "paths": {
+    "/widgets": {
+      "get": {
+        "responses": {
+          "200": {
+            "schema": {
+              "type": "array",
+              "items": {"$ref": "#/definitions/Widget"}
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {"$ref": "#/definitions/Widget"}
+          }
+        ],
+        "responses": {
+          "201": {
+            "schema": {"$ref": "#/definitions/Widget"}
+          }
+        }
+      }
+    },
+    "/widgets/{id}": {
+      "get": {
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "type": "integer"}
+        ],
+        "responses": {
+          "200": {
+            "schema": {"$ref": "#/definitions/Widget"}
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "type": "integer"}
+        ],
+        "responses": {
+          "204": {"description": "gone"}
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Widget": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"}
+      }
+    }
+  }
+}

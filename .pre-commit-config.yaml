@@ -1,0 +1,15 @@
+# See https://pre-commit.com for usage: pip install pre-commit && pre-commit install
+
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest (coverage ≥90%)
+        entry: python -m pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        args:
+          - -q
+          - --cov=pyapiclient
+          - --cov-fail-under=90

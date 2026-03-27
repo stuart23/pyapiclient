@@ -1,0 +1,10 @@
+---
+description: Keep total test coverage at or above 90% for pyapiclient
+alwaysApply: true
+---
+
+# Test coverage
+
+- **Target:** total coverage for the `pyapiclient` package must stay **≥ 90%** (pytest-cov with branch coverage enabled, same settings as `pyproject.toml`).
+- **Scope:** all modules under `src/pyapiclient/` — when adding or changing code, add or extend tests so new branches and lines remain covered. Do not lower `--cov-fail-under` to “make CI green” without restoring coverage.
+- **Check locally:** `pytest -q --cov=pyapiclient --cov-fail-under=90` (or `pre-commit run --all-files` after hooks are installed).
