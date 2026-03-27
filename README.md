@@ -1,5 +1,8 @@
 # pyAPIClient
 
+[![CI](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/stuart23/pyapiclient/graph/badge.svg?branch=main)](https://codecov.io/gh/stuart23/pyapiclient)
+
 Generate **Django-like** model classes from an **OpenAPI 2** or **OpenAPI 3** document, or a **GraphQL schema** (SDL or introspection JSON), as a URL or local file. OpenAPI schemas under `definitions` (v2) or `components.schemas` (v3) become models with `.objects` wired to REST paths. GraphQL **object types** become models whose `.objects` issues `query` / `mutation` operations against a single HTTP endpoint (default `POST /graphql`).
 
 ## Install
@@ -23,6 +26,8 @@ CI-style checks use **≥90%** coverage on `pyapiclient` (see `pyproject.toml`).
 ```bash
 pytest -q --cov=pyapiclient --cov-fail-under=90
 ```
+
+[GitHub Actions](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/pyapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
 
 With a **Git** checkout, install [`pre-commit`](https://pre-commit.com/) (`pip install pre-commit` or use the `dev` extra) and run `pre-commit install` so commits run the same pytest command via [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
 
