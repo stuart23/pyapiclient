@@ -42,6 +42,30 @@ def test_graphql_create_payload_not_object(library_graphql_path: Path) -> None:
     api.close()
 
 
+def test_api_make_graphql_from_nongraphql_suffix_path(
+    tmp_path: Path, library_graphql_path: Path
+) -> None:
+    import httpx
+
+    sdl = library_graphql_path.read_text(encoding="utf-8")
+    p = tmp_path / "schema.txt"
+    p.write_text(sdl, encoding="utf-8")
+
+    def _list_authors(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": {"authors": []}})
+
+    transport = httpx.MockTransport(_list_authors)
+    hc = httpx.Client(transport=transport, base_url="https://gql.test")
+    api = api_make(
+        p,
+        base_url="https://gql.test",
+        graphql_path="/graphql",
+        http_client=hc,
+    )
+    assert api.spec_family == "graphql"
+    api.close()
+
+
 def test_graphql_get_payload_not_object(library_graphql_path: Path) -> None:
     import httpx
 
@@ -50,7 +74,11 @@ def test_graphql_get_payload_not_object(library_graphql_path: Path) -> None:
 
     transport = httpx.MockTransport(handler)
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
-    api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
+    api = api_make(
+        library_graphql_path,
+        base_url="https://gql.test",
+        http_client=hc,
+    )
     with pytest.raises(Exception, match="object"):
         api.models.Author.objects.get(pk="1")
     api.close()

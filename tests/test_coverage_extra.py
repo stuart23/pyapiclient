@@ -207,6 +207,77 @@ def test_graphql_path_normalized_leading_slash(library_graphql_path: Path) -> No
     api.close()
 
 
+def test_parse_graphql_introspection_data_wrong_type() -> None:
+    with pytest.raises(PyAPIClientSpecError, match="__schema"):
+        parse_graphql_schema('{"data": []}')
+
+
+def test_parse_graphql_sdl_generic_exception_wrapped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pyapiclient.graphql_support as gs
+
+    def boom(_raw: str) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(gs, "build_schema", boom)
+    with pytest.raises(PyAPIClientSpecError, match="Invalid GraphQL SDL"):
+        parse_graphql_schema("type Q { x: Int }")
+
+
+def test_navigate_graphql_payload_missing_key() -> None:
+    from pyapiclient.graphql_support import navigate_graphql_payload
+    from pyapiclient.exceptions import PyAPIClientModelError
+
+    with pytest.raises(PyAPIClientModelError, match="missing key"):
+        navigate_graphql_payload({"a": 1}, ("b",))
+
+
+def test_looks_like_graphql_sdl_empty() -> None:
+    from pyapiclient.graphql_support import looks_like_graphql_sdl
+
+    assert looks_like_graphql_sdl("") is False
+    assert looks_like_graphql_sdl("   ") is False
+
+
+def test_build_list_query_document_unknown_param() -> None:
+    from pyapiclient.graphql_support import build_list_query_document
+    from pyapiclient.exceptions import PyAPIClientModelError
+
+    msg = "Unknown GraphQL arguments"
+    with pytest.raises(PyAPIClientModelError, match=msg):
+        build_list_query_document(
+            "authors",
+            "id name",
+            {"nope": 1},
+            {"limit": "Int!"},
+            {"limit": object()},
+        )
+
+
+def test_build_graphql_model_classes_duplicate_safe_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pyapiclient.api as api_mod
+
+    monkeypatch.setattr(api_mod, "_sanitize_identifier", lambda _name: "Dup")
+
+    sdl = """
+    type Book { id: ID!, title: String }
+    type Author { id: ID!, name: String }
+    type Query { books: [Book!], authors: [Author!] }
+    type Mutation { _: Int }
+    """
+    schema = parse_graphql_schema(sdl)
+    mock_http = MagicMock()
+    with pytest.raises(PyAPIClientSpecError, match="both map"):
+        build_graphql_model_classes(
+            schema,
+            graphql_path="/graphql",
+            http_client=mock_http,
+        )
+
+
 def test_openapi_get_base_url_non_spec_error_wrapped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -232,10 +303,35 @@ def test_openapi_get_base_url_non_spec_error_wrapped(
 
     monkeypatch.setattr(api_mod, "get_base_url", boom)
     with pytest.raises(PyAPIClientSpecError, match="bad base"):
-        api_make(
-            p,
-            base_url=None,
-            http_client=httpx.Client(
-                transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))
-            ),
-        )
+        tr = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+        api_make(p, base_url=None, http_client=httpx.Client(transport=tr))
+
+
+def test_api_make_resolved_schema_recursion_error_wrapped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import httpx
+
+    from pyapiclient import api_make
+    import pyapiclient.api as api_mod
+
+    p = tmp_path / "o.yaml"
+    p.write_text(
+        "openapi: 3.0.0\n"
+        "info: {title: t, version: '1'}\n"
+        "paths: {}\n"
+        "components:\n"
+        "  schemas:\n"
+        "    X:\n"
+        "      type: object\n",
+        encoding="utf-8",
+    )
+
+    def rec(*_a: object, **_k: object) -> None:
+        raise RecursionError("deep")
+
+    monkeypatch.setattr(api_mod, "resolved_schema", rec)
+    with pytest.raises(PyAPIClientSpecError, match="cycle"):
+        tr = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+        hc = httpx.Client(transport=tr)
+        api_make(p, base_url="https://x.test", http_client=hc)

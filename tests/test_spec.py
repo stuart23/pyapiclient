@@ -95,6 +95,15 @@ def test_get_base_url_swagger_ok() -> None:
     assert u == "http://h.test/v1"
 
 
+def test_get_base_url_swagger_scheme_not_string_falls_back() -> None:
+    u = get_base_url(
+        {"swagger": "2.0", "host": "h.test", "schemes": [None]},
+        "swagger2",
+        None,
+    )
+    assert u == "https://h.test"
+
+
 def test_get_base_url_oas3_no_servers() -> None:
     with pytest.raises(PyAPIClientSpecError, match="servers"):
         get_base_url({"openapi": "3.0.0"}, "openapi3", None)
@@ -162,3 +171,9 @@ def test_resolve_refs_bad_ref_type() -> None:
 def test_resolved_schema_not_object() -> None:
     with pytest.raises(PyAPIClientSpecError, match="object"):
         resolved_schema({}, "n", "bad")  # type: ignore[arg-type]
+
+
+def test_resolved_schema_resolved_value_not_object() -> None:
+    spec = {"components": {"schemas": {"B": "scalar"}}}
+    with pytest.raises(PyAPIClientSpecError, match="not an object"):
+        resolved_schema(spec, "A", {"$ref": "#/components/schemas/B"})

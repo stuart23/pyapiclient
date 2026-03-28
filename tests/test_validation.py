@@ -75,3 +75,71 @@ def test_validate_union_type_list() -> None:
     validate_payload(schema, "a", context="u")
     with pytest.raises(PyAPIClientValidationError):
         validate_payload(schema, [], context="u")
+
+
+def test_validate_properties_not_dict_uses_empty() -> None:
+    schema = {"type": "object", "properties": "nope", "required": ["a"]}
+    with pytest.raises(PyAPIClientValidationError, match="missing"):
+        validate_payload(schema, {}, context="body")
+
+
+def test_validate_required_not_list_treated_as_empty() -> None:
+    schema = {
+        "type": "object",
+        "required": "x",
+        "properties": {"a": {"type": "string"}},
+    }
+    validate_payload(schema, {"a": "ok"}, context="body")
+
+
+def test_validate_subschema_not_dict_skipped() -> None:
+    schema = {"type": "object", "properties": {"a": "not-a-schema"}}
+    validate_payload(schema, {"a": 123}, context="body")
+
+
+def test_validate_number_and_boolean_fields() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"n": {"type": "number"}, "b": {"type": "boolean"}},
+    }
+    validate_payload(schema, {"n": 1.5, "b": False}, context="body")
+    with pytest.raises(PyAPIClientValidationError):
+        validate_payload(schema, {"n": True, "b": True}, context="body")
+
+
+def test_validate_unknown_json_schema_type_accepts_value() -> None:
+    schema = {"type": "object", "properties": {"x": {"type": "weird"}}}
+    validate_payload(schema, {"x": object()}, context="body")
+
+
+def test_validate_unknown_fields_allowed_when_additional_not_false() -> None:
+    schema = {"type": "object", "properties": {"a": {"type": "integer"}}}
+    validate_payload(schema, {"a": 1, "extra": "ok"}, context="body")
+
+
+def test_validate_nested_errors_extend_inner_list() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "inner": {
+                "type": "object",
+                "required": ["u", "v"],
+                "properties": {
+                    "u": {"type": "string"},
+                    "v": {"type": "string"},
+                },
+            }
+        },
+    }
+    with pytest.raises(PyAPIClientValidationError) as ei:
+        validate_payload(schema, {"inner": {}}, context="root")
+    err = ei.value
+    assert err.errors and len(err.errors) >= 2
+
+
+def test_validate_array_items_schema_not_dict_no_item_checks() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"xs": {"type": "array", "items": True}},
+    }
+    validate_payload(schema, {"xs": [1, 2, 3]}, context="body")

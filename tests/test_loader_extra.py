@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 from pathlib import Path
 
 import pytest
@@ -31,3 +32,26 @@ def test_read_source_text_bad_type() -> None:
 def test_read_source_text_missing_str_path() -> None:
     with pytest.raises(PyAPIClientSpecError, match="Could not read"):
         read_source_text("no-such-file-xyz-12345.json", timeout=1)
+
+
+def test_read_source_text_empty_string() -> None:
+    with pytest.raises(PyAPIClientConfigurationError, match="empty"):
+        read_source_text("   ", timeout=1)
+
+
+def test_read_source_text_path_oserror(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    p = tmp_path / "spec.txt"
+    p.write_text("x", encoding="utf-8")
+    real_read = pathlib.Path.read_text
+
+    def _read(self: pathlib.Path, *a: object, **kw: object) -> str:
+        if self.resolve() == p.resolve():
+            raise OSError("read failed")
+        return real_read(self, *a, **kw)
+
+    monkeypatch.setattr(pathlib.Path, "read_text", _read)
+    with pytest.raises(PyAPIClientSpecError, match="Cannot read file"):
+        read_source_text(p, timeout=1.0)
