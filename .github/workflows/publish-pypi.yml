@@ -1,4 +1,4 @@
-# Publish pyapiclient to PyPI when a GitHub Release is published.
+# Publish dynamicapiclient to PyPI when a GitHub Release is published.
 #
 # Trusted publishing (recommended): https://docs.pypi.org/trusted-publishers/
 #   PyPI → Your project → Publishing → Add a pending publisher

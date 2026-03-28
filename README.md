@@ -7,7 +7,7 @@ Generate **Django-like** model classes from an **OpenAPI 2** or **OpenAPI 3** do
 
 ## Install
 
-The **PyPI / import package name** is `pyapiclient` (`import pyapiclient`). This project is referred to as **pyAPIClient** in documentation.
+The **PyPI distribution** is [`dynamicapiclient`](https://pypi.org/project/dynamicapiclient/) (`pip install dynamicapiclient`). The **Python import package** remains `pyapiclient` (`import pyapiclient`). This project is referred to as **pyAPIClient** in documentation.
 
 ```bash
 pip install -e .
@@ -119,7 +119,7 @@ MyAPI = api_make("https://example.com/openapi.yaml")
 
 ## GraphQL schema (SDL or introspection JSON)
 
-Install `graphql-core` (`pip install "pyapiclient[graphql]"`). Point `api_make` at a `.graphql` / `.gql` file, a JSON introspection export (`data.__schema` or bare `__schema`), or a URL whose body looks like GraphQL SDL or introspection. You **must** pass `base_url=` to the HTTP server root; SDL does not carry a server URL.
+Install `graphql-core` (`pip install "dynamicapiclient[graphql]"`). Point `api_make` at a `.graphql` / `.gql` file, a JSON introspection export (`data.__schema` or bare `__schema`), or a URL whose body looks like GraphQL SDL or introspection. You **must** pass `base_url=` to the HTTP server root; SDL does not carry a server URL.
 
 ```python
 from pathlib import Path
