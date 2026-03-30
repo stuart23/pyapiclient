@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from pyapiclient.exceptions import PyAPIClientHTTPError, PyAPIClientModelError
+from dynamicapiclient.exceptions import DynamicAPIClientHTTPError, DynamicAPIClientModelError
 
 
 class HTTPClient:
@@ -55,14 +55,14 @@ class HTTPClient:
             payload["variables"] = variables
         raw = self.request_json("POST", path, json_body=payload)
         if not isinstance(raw, dict):
-            raise PyAPIClientModelError("GraphQL HTTP response must be a JSON object.")
+            raise DynamicAPIClientModelError("GraphQL HTTP response must be a JSON object.")
         if raw.get("errors"):
-            raise PyAPIClientModelError(f"GraphQL errors: {raw.get('errors')}")
+            raise DynamicAPIClientModelError(f"GraphQL errors: {raw.get('errors')}")
         data = raw.get("data")
         if data is None:
-            raise PyAPIClientModelError("GraphQL response is missing a top-level 'data' key.")
+            raise DynamicAPIClientModelError("GraphQL response is missing a top-level 'data' key.")
         if not isinstance(data, dict):
-            raise PyAPIClientModelError("GraphQL 'data' must be an object.")
+            raise DynamicAPIClientModelError("GraphQL 'data' must be an object.")
         return data
 
     def request_json(
@@ -89,10 +89,10 @@ class HTTPClient:
                 headers=self._headers or None,
             )
         except httpx.RequestError as e:
-            raise PyAPIClientHTTPError(f"Request failed: {e}") from e
+            raise DynamicAPIClientHTTPError(f"Request failed: {e}") from e
 
         if response.status_code >= 400:
-            raise PyAPIClientHTTPError(
+            raise DynamicAPIClientHTTPError(
                 f"HTTP {response.status_code} for {method.upper()} {path}",
                 status_code=response.status_code,
                 response_body=response.text[:4000] if response.text else None,
@@ -108,7 +108,7 @@ class HTTPClient:
         try:
             return response.json()
         except ValueError as e:
-            raise PyAPIClientHTTPError(
+            raise DynamicAPIClientHTTPError(
                 f"Response is not valid JSON ({response.status_code}) for {path}",
                 status_code=response.status_code,
                 response_body=response.text[:2000] if response.text else None,

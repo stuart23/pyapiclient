@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from pyapiclient.exceptions import PyAPIClientConfigurationError, PyAPIClientSpecError
-from pyapiclient.loader import parse_openapi_document, read_source_text
+from dynamicapiclient.exceptions import DynamicAPIClientConfigurationError, DynamicAPIClientSpecError
+from dynamicapiclient.loader import parse_openapi_document, read_source_text
 
 
 def test_parse_openapi_document_json_minimal() -> None:
@@ -15,7 +15,7 @@ def test_parse_openapi_document_json_minimal() -> None:
 
 
 def test_parse_openapi_document_empty() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
         parse_openapi_document("   ")
 
 
@@ -25,17 +25,17 @@ def test_read_source_text_str_local_file(library_oas3_path: Path) -> None:
 
 
 def test_read_source_text_bad_type() -> None:
-    with pytest.raises(PyAPIClientConfigurationError):
+    with pytest.raises(DynamicAPIClientConfigurationError):
         read_source_text(123, timeout=1)  # type: ignore[arg-type]
 
 
 def test_read_source_text_missing_str_path() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Could not read"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Could not read"):
         read_source_text("no-such-file-xyz-12345.json", timeout=1)
 
 
 def test_read_source_text_empty_string() -> None:
-    with pytest.raises(PyAPIClientConfigurationError, match="empty"):
+    with pytest.raises(DynamicAPIClientConfigurationError, match="empty"):
         read_source_text("   ", timeout=1)
 
 
@@ -53,5 +53,5 @@ def test_read_source_text_path_oserror(
         return real_read(self, *a, **kw)
 
     monkeypatch.setattr(pathlib.Path, "read_text", _read)
-    with pytest.raises(PyAPIClientSpecError, match="Cannot read file"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Cannot read file"):
         read_source_text(p, timeout=1.0)

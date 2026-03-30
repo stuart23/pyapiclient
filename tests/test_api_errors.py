@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 import pytest
 
-from pyapiclient.api import api_make
-from pyapiclient.exceptions import PyAPIClientSpecError
+from dynamicapiclient.api import api_make
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
 
 
 def test_api_make_wraps_unexpected_get_base_url_error(library_oas3_path: Path) -> None:
-    with patch("pyapiclient.api.get_base_url", side_effect=RuntimeError("boom")):
-        with pytest.raises(PyAPIClientSpecError, match="boom"):
+    with patch("dynamicapiclient.api.get_base_url", side_effect=RuntimeError("boom")):
+        with pytest.raises(DynamicAPIClientSpecError, match="boom"):
             api_make(library_oas3_path)
 
 
@@ -30,6 +30,6 @@ components:
 """,
         encoding="utf-8",
     )
-    with patch("pyapiclient.api.resolved_schema", side_effect=RecursionError("deep")):
-        with pytest.raises(PyAPIClientSpecError, match="could not be resolved"):
+    with patch("dynamicapiclient.api.resolved_schema", side_effect=RecursionError("deep")):
+        with pytest.raises(DynamicAPIClientSpecError, match="could not be resolved"):
             api_make(p)

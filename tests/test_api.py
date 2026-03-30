@@ -5,9 +5,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from pyapiclient import api_make
-from pyapiclient.api import ModelsNamespace, _sanitize_identifier
-from pyapiclient.exceptions import PyAPIClientSpecError
+from dynamicapiclient import api_make
+from dynamicapiclient.api import ModelsNamespace, _sanitize_identifier
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
 
 
 def test_sanitize_identifier_basic() -> None:
@@ -17,7 +17,7 @@ def test_sanitize_identifier_basic() -> None:
 
 
 def test_sanitize_identifier_empty() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="cannot be empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="cannot be empty"):
         _sanitize_identifier("")
 
 
@@ -110,7 +110,7 @@ def test_api_make_no_schemas(tmp_path: Path) -> None:
         "openapi: 3.0.3\ninfo: {title: x, version: '1'}\npaths: {}\n",
         encoding="utf-8",
     )
-    with pytest.raises(PyAPIClientSpecError, match="No schema definitions"):
+    with pytest.raises(DynamicAPIClientSpecError, match="No schema definitions"):
         api_make(p, base_url="https://x")
 
 
@@ -133,7 +133,7 @@ components:
 """,
         encoding="utf-8",
     )
-    with pytest.raises(PyAPIClientSpecError, match="both map to model attribute"):
+    with pytest.raises(DynamicAPIClientSpecError, match="both map to model attribute"):
         api_make(p)
 
 

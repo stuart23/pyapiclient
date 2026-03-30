@@ -8,8 +8,8 @@ import pytest
 import respx
 import yaml
 
-from pyapiclient.exceptions import PyAPIClientConfigurationError, PyAPIClientHTTPError, PyAPIClientSpecError
-from pyapiclient.loader import _guess_format_from_path, _looks_like_url, _parse_text, load_spec
+from dynamicapiclient.exceptions import DynamicAPIClientConfigurationError, DynamicAPIClientHTTPError, DynamicAPIClientSpecError
+from dynamicapiclient.loader import _guess_format_from_path, _looks_like_url, _parse_text, load_spec
 
 
 def test_looks_like_url() -> None:
@@ -26,28 +26,28 @@ def test_guess_format_from_path(tmp_path: Path) -> None:
 
 
 def test_parse_text_json_invalid() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid JSON"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid JSON"):
         _parse_text("{", "json")
 
 
 def test_parse_text_yaml_invalid() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid YAML"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid YAML"):
         _parse_text(":\n:", "yaml")
 
 
 def test_parse_text_empty() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
         _parse_text("   ", "json")
 
 
 def test_parse_text_not_object() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="object"):
+    with pytest.raises(DynamicAPIClientSpecError, match="object"):
         _parse_text("[1]", "json")
 
 
 def test_load_spec_file_missing(tmp_path: Path) -> None:
     p = tmp_path / "nope.yaml"
-    with pytest.raises(PyAPIClientSpecError, match="does not exist"):
+    with pytest.raises(DynamicAPIClientSpecError, match="does not exist"):
         load_spec(p)
 
 
@@ -62,17 +62,17 @@ def test_load_spec_path_str(library_oas3_path: Path) -> None:
 
 
 def test_load_spec_bad_type() -> None:
-    with pytest.raises(PyAPIClientConfigurationError):
+    with pytest.raises(DynamicAPIClientConfigurationError):
         load_spec(123)  # type: ignore[arg-type]
 
 
 def test_load_spec_empty_string() -> None:
-    with pytest.raises(PyAPIClientConfigurationError):
+    with pytest.raises(DynamicAPIClientConfigurationError):
         load_spec("   ")
 
 
 def test_load_spec_neither_url_nor_file() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="not a valid URL"):
+    with pytest.raises(DynamicAPIClientSpecError, match="not a valid URL"):
         load_spec("definitely-not-a-file-xyz-123.yaml")
 
 
@@ -89,7 +89,7 @@ def test_load_spec_url_success() -> None:
 @respx.mock
 def test_load_spec_url_http_error() -> None:
     respx.get("https://spec.test/missing").mock(return_value=httpx.Response(404, text="no"))
-    with pytest.raises(PyAPIClientHTTPError, match="404"):
+    with pytest.raises(DynamicAPIClientHTTPError, match="404"):
         load_spec("https://spec.test/missing")
 
 
@@ -99,7 +99,7 @@ def test_load_spec_url_network() -> None:
         raise httpx.ConnectError("nope", request=httpx.Request("GET", "https://x"))
 
     respx.get("https://spec.test/boom").mock(side_effect=boom)
-    with pytest.raises(PyAPIClientSpecError, match="Network"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Network"):
         load_spec("https://spec.test/boom")
 
 
@@ -120,5 +120,5 @@ def test_load_spec_url_yaml_content_type() -> None:
 @respx.mock
 def test_load_spec_url_empty_body() -> None:
     respx.get("https://spec.test/e").mock(return_value=httpx.Response(200, text=""))
-    with pytest.raises(PyAPIClientSpecError, match="empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
         load_spec("https://spec.test/e")

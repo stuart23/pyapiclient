@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import pytest
 
-from pyapiclient.exceptions import PyAPIClientValidationError
-from pyapiclient.validation import validate_payload
+from dynamicapiclient.exceptions import DynamicAPIClientValidationError
+from dynamicapiclient.validation import validate_payload
 
 
 def test_validate_object_required_missing() -> None:
     schema = {"type": "object", "required": ["a"], "properties": {"a": {"type": "string"}}}
-    with pytest.raises(PyAPIClientValidationError, match="missing"):
+    with pytest.raises(DynamicAPIClientValidationError, match="missing"):
         validate_payload(schema, {}, context="body")
 
 
 def test_validate_object_wrong_root_type() -> None:
     schema = {"type": "object", "properties": {}}
-    with pytest.raises(PyAPIClientValidationError, match="expected object"):
+    with pytest.raises(DynamicAPIClientValidationError, match="expected object"):
         validate_payload(schema, [], context="body")
 
 
@@ -24,13 +24,13 @@ def test_validate_additional_props_false() -> None:
         "additionalProperties": False,
         "properties": {"a": {"type": "integer"}},
     }
-    with pytest.raises(PyAPIClientValidationError, match="unknown field"):
+    with pytest.raises(DynamicAPIClientValidationError, match="unknown field"):
         validate_payload(schema, {"a": 1, "b": 2}, context="body")
 
 
 def test_validate_field_type() -> None:
     schema = {"type": "object", "properties": {"n": {"type": "integer"}}}
-    with pytest.raises(PyAPIClientValidationError, match="incompatible"):
+    with pytest.raises(DynamicAPIClientValidationError, match="incompatible"):
         validate_payload(schema, {"n": "x"}, context="body")
 
 
@@ -44,7 +44,7 @@ def test_validate_array_items() -> None:
         "type": "object",
         "properties": {"xs": {"type": "array", "items": {"type": "integer"}}},
     }
-    with pytest.raises(PyAPIClientValidationError, match=r"field 'xs'\[0\]"):
+    with pytest.raises(DynamicAPIClientValidationError, match=r"field 'xs'\[0\]"):
         validate_payload(schema, {"xs": ["a"]}, context="body")
 
 
@@ -59,13 +59,13 @@ def test_validate_nested_object() -> None:
             }
         },
     }
-    with pytest.raises(PyAPIClientValidationError, match="missing required field 'z'"):
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'z'"):
         validate_payload(schema, {"inner": {}}, context="root")
 
 
 def test_validate_primitive_schema() -> None:
     validate_payload({"type": "string"}, "hi", context="x")
-    with pytest.raises(PyAPIClientValidationError, match="incompatible"):
+    with pytest.raises(DynamicAPIClientValidationError, match="incompatible"):
         validate_payload({"type": "string"}, 3, context="x")
 
 
@@ -73,13 +73,13 @@ def test_validate_union_type_list() -> None:
     schema = {"type": ["integer", "string"]}
     validate_payload(schema, 1, context="u")
     validate_payload(schema, "a", context="u")
-    with pytest.raises(PyAPIClientValidationError):
+    with pytest.raises(DynamicAPIClientValidationError):
         validate_payload(schema, [], context="u")
 
 
 def test_validate_properties_not_dict_uses_empty() -> None:
     schema = {"type": "object", "properties": "nope", "required": ["a"]}
-    with pytest.raises(PyAPIClientValidationError, match="missing"):
+    with pytest.raises(DynamicAPIClientValidationError, match="missing"):
         validate_payload(schema, {}, context="body")
 
 
@@ -103,7 +103,7 @@ def test_validate_number_and_boolean_fields() -> None:
         "properties": {"n": {"type": "number"}, "b": {"type": "boolean"}},
     }
     validate_payload(schema, {"n": 1.5, "b": False}, context="body")
-    with pytest.raises(PyAPIClientValidationError):
+    with pytest.raises(DynamicAPIClientValidationError):
         validate_payload(schema, {"n": True, "b": True}, context="body")
 
 
@@ -131,7 +131,7 @@ def test_validate_nested_errors_extend_inner_list() -> None:
             }
         },
     }
-    with pytest.raises(PyAPIClientValidationError) as ei:
+    with pytest.raises(DynamicAPIClientValidationError) as ei:
         validate_payload(schema, {"inner": {}}, context="root")
     err = ei.value
     assert err.errors and len(err.errors) >= 2

@@ -9,40 +9,40 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pyapiclient.exceptions import (
-    PyAPIClientConfigurationError,
-    PyAPIClientModelError,
-    PyAPIClientSpecError,
+from dynamicapiclient.exceptions import (
+    DynamicAPIClientConfigurationError,
+    DynamicAPIClientModelError,
+    DynamicAPIClientSpecError,
 )
-from pyapiclient.graphql_support import (
+from dynamicapiclient.graphql_support import (
     build_graphql_model_classes,
     graphql_execute_data,
     parse_graphql_schema,
 )
-from pyapiclient.loader import load_spec, read_source_text
+from dynamicapiclient.loader import load_spec, read_source_text
 
 
 def test_require_graphql_when_core_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    import pyapiclient.graphql_support as gs
+    import dynamicapiclient.graphql_support as gs
 
     monkeypatch.setattr(gs, "build_schema", None)
-    with pytest.raises(PyAPIClientConfigurationError, match="graphql-core"):
+    with pytest.raises(DynamicAPIClientConfigurationError, match="graphql-core"):
         gs.require_graphql()
 
 
 def test_parse_graphql_introspection_missing_inner_schema() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="__schema"):
+    with pytest.raises(DynamicAPIClientSpecError, match="__schema"):
         parse_graphql_schema('{"data": {"queryType": {"name": "Q"}}}')
 
 
 def test_parse_graphql_introspection_build_client_schema_fails() -> None:
     bad = json.dumps({"__schema": {"types": "not-a-list"}})
-    with pytest.raises(PyAPIClientSpecError, match="Invalid GraphQL introspection"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid GraphQL introspection"):
         parse_graphql_schema(bad)
 
 
 def test_parse_graphql_sdl_non_graphql_error_wrapped() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid GraphQL SDL"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid GraphQL SDL"):
         parse_graphql_schema("type Broken { y: }}")
 
 
@@ -51,7 +51,7 @@ def test_graphql_execute_data_not_object() -> None:
         def post_graphql(self, path: str, document: str, variables: dict | None = None):
             return []
 
-    with pytest.raises(PyAPIClientModelError, match="not an object"):
+    with pytest.raises(DynamicAPIClientModelError, match="not an object"):
         graphql_execute_data(BadClient(), "/g", "query { x }", None)
 
 
@@ -63,12 +63,12 @@ def test_build_graphql_model_classes_no_inferrable_types(tmp_path: Path) -> None
     """
     schema = parse_graphql_schema(sdl)
     mock_http = MagicMock()
-    with pytest.raises(PyAPIClientSpecError, match="No GraphQL object"):
+    with pytest.raises(DynamicAPIClientSpecError, match="No GraphQL object"):
         build_graphql_model_classes(schema, graphql_path="/graphql", http_client=mock_http)
 
 
 def test_looks_like_graphql_schema_keyword() -> None:
-    from pyapiclient.graphql_support import looks_like_graphql_sdl
+    from dynamicapiclient.graphql_support import looks_like_graphql_sdl
 
     text = """
     schema { query: Q }
@@ -88,7 +88,7 @@ def test_load_spec_path_read_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyP
         return real_read(self, *a, **kw)
 
     monkeypatch.setattr(pathlib.Path, "read_text", _read)
-    with pytest.raises(PyAPIClientSpecError, match="Cannot read specification file"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Cannot read specification file"):
         load_spec(p)
 
 
@@ -103,12 +103,12 @@ def test_read_source_text_str_path_oserror(tmp_path: Path, monkeypatch: pytest.M
         return real_read(self, *a, **kw)
 
     monkeypatch.setattr(pathlib.Path, "read_text", _read)
-    with pytest.raises(PyAPIClientSpecError, match="Cannot read file"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Cannot read file"):
         read_source_text(str(p), timeout=5.0)
 
 
 def test_object_output_schema_required_scalar() -> None:
-    from pyapiclient.graphql_support import _object_output_schema, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _object_output_schema, parse_graphql_schema
 
     schema = parse_graphql_schema(
         """
@@ -122,7 +122,7 @@ def test_object_output_schema_required_scalar() -> None:
 
 
 def test_input_to_json_schema_no_required_fields() -> None:
-    from pyapiclient.graphql_support import _input_to_json_schema, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _input_to_json_schema, parse_graphql_schema
 
     schema = parse_graphql_schema(
         """
@@ -136,7 +136,7 @@ def test_input_to_json_schema_no_required_fields() -> None:
 
 
 def test_scalar_selection_builtin_name_branch() -> None:
-    from pyapiclient.graphql_support import _scalar_selection_lines, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _scalar_selection_lines, parse_graphql_schema
 
     schema = parse_graphql_schema(
         """
@@ -150,7 +150,7 @@ def test_scalar_selection_builtin_name_branch() -> None:
 
 
 def test_author_like_path_nested_field() -> None:
-    from pyapiclient.graphql_support import _author_like_path, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _author_like_path, parse_graphql_schema
 
     schema = parse_graphql_schema(
         """
@@ -167,7 +167,7 @@ def test_author_like_path_nested_field() -> None:
 
 
 def test_graphql_enum_fragment_in_schema_builder() -> None:
-    from pyapiclient.graphql_support import _graphql_type_to_json_schema_fragment, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _graphql_type_to_json_schema_fragment, parse_graphql_schema
     from graphql.type.definition import GraphQLEnumType
 
     schema = parse_graphql_schema(
@@ -185,7 +185,7 @@ def test_graphql_enum_fragment_in_schema_builder() -> None:
 def test_coerce_graphql_variable_non_id() -> None:
     from graphql.type.scalars import GraphQLString
 
-    from pyapiclient.graphql_support import coerce_graphql_variable
+    from dynamicapiclient.graphql_support import coerce_graphql_variable
 
     assert coerce_graphql_variable(GraphQLString, "x") == "x"
 
@@ -193,7 +193,7 @@ def test_coerce_graphql_variable_non_id() -> None:
 def test_graphql_path_normalized_leading_slash(library_graphql_path: Path) -> None:
     import httpx
 
-    from pyapiclient import api_make
+    from dynamicapiclient import api_make
 
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {"authors": []}}))
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
@@ -208,44 +208,44 @@ def test_graphql_path_normalized_leading_slash(library_graphql_path: Path) -> No
 
 
 def test_parse_graphql_introspection_data_wrong_type() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="__schema"):
+    with pytest.raises(DynamicAPIClientSpecError, match="__schema"):
         parse_graphql_schema('{"data": []}')
 
 
 def test_parse_graphql_sdl_generic_exception_wrapped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import pyapiclient.graphql_support as gs
+    import dynamicapiclient.graphql_support as gs
 
     def boom(_raw: str) -> None:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(gs, "build_schema", boom)
-    with pytest.raises(PyAPIClientSpecError, match="Invalid GraphQL SDL"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid GraphQL SDL"):
         parse_graphql_schema("type Q { x: Int }")
 
 
 def test_navigate_graphql_payload_missing_key() -> None:
-    from pyapiclient.graphql_support import navigate_graphql_payload
-    from pyapiclient.exceptions import PyAPIClientModelError
+    from dynamicapiclient.graphql_support import navigate_graphql_payload
+    from dynamicapiclient.exceptions import DynamicAPIClientModelError
 
-    with pytest.raises(PyAPIClientModelError, match="missing key"):
+    with pytest.raises(DynamicAPIClientModelError, match="missing key"):
         navigate_graphql_payload({"a": 1}, ("b",))
 
 
 def test_looks_like_graphql_sdl_empty() -> None:
-    from pyapiclient.graphql_support import looks_like_graphql_sdl
+    from dynamicapiclient.graphql_support import looks_like_graphql_sdl
 
     assert looks_like_graphql_sdl("") is False
     assert looks_like_graphql_sdl("   ") is False
 
 
 def test_build_list_query_document_unknown_param() -> None:
-    from pyapiclient.graphql_support import build_list_query_document
-    from pyapiclient.exceptions import PyAPIClientModelError
+    from dynamicapiclient.graphql_support import build_list_query_document
+    from dynamicapiclient.exceptions import DynamicAPIClientModelError
 
     msg = "Unknown GraphQL arguments"
-    with pytest.raises(PyAPIClientModelError, match=msg):
+    with pytest.raises(DynamicAPIClientModelError, match=msg):
         build_list_query_document(
             "authors",
             "id name",
@@ -258,7 +258,7 @@ def test_build_list_query_document_unknown_param() -> None:
 def test_build_graphql_model_classes_duplicate_safe_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import pyapiclient.api as api_mod
+    import dynamicapiclient.api as api_mod
 
     monkeypatch.setattr(api_mod, "_sanitize_identifier", lambda _name: "Dup")
 
@@ -270,7 +270,7 @@ def test_build_graphql_model_classes_duplicate_safe_name(
     """
     schema = parse_graphql_schema(sdl)
     mock_http = MagicMock()
-    with pytest.raises(PyAPIClientSpecError, match="both map"):
+    with pytest.raises(DynamicAPIClientSpecError, match="both map"):
         build_graphql_model_classes(
             schema,
             graphql_path="/graphql",
@@ -283,8 +283,8 @@ def test_openapi_get_base_url_non_spec_error_wrapped(
 ) -> None:
     import httpx
 
-    from pyapiclient import api_make
-    import pyapiclient.api as api_mod
+    from dynamicapiclient import api_make
+    import dynamicapiclient.api as api_mod
 
     p = tmp_path / "o.yaml"
     p.write_text(
@@ -302,7 +302,7 @@ def test_openapi_get_base_url_non_spec_error_wrapped(
         raise ValueError("bad base")
 
     monkeypatch.setattr(api_mod, "get_base_url", boom)
-    with pytest.raises(PyAPIClientSpecError, match="bad base"):
+    with pytest.raises(DynamicAPIClientSpecError, match="bad base"):
         tr = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
         api_make(p, base_url=None, http_client=httpx.Client(transport=tr))
 
@@ -312,8 +312,8 @@ def test_api_make_resolved_schema_recursion_error_wrapped(
 ) -> None:
     import httpx
 
-    from pyapiclient import api_make
-    import pyapiclient.api as api_mod
+    from dynamicapiclient import api_make
+    import dynamicapiclient.api as api_mod
 
     p = tmp_path / "o.yaml"
     p.write_text(
@@ -331,7 +331,7 @@ def test_api_make_resolved_schema_recursion_error_wrapped(
         raise RecursionError("deep")
 
     monkeypatch.setattr(api_mod, "resolved_schema", rec)
-    with pytest.raises(PyAPIClientSpecError, match="cycle"):
+    with pytest.raises(DynamicAPIClientSpecError, match="cycle"):
         tr = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
         hc = httpx.Client(transport=tr)
         api_make(p, base_url="https://x.test", http_client=hc)

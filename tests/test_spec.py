@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pyapiclient.exceptions import PyAPIClientSpecError
-from pyapiclient.spec import (
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
+from dynamicapiclient.spec import (
     detect_version,
     get_base_url,
     get_schemas,
@@ -18,7 +18,7 @@ def test_detect_swagger2() -> None:
 
 
 def test_detect_swagger_unsupported() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Unsupported Swagger"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Unsupported Swagger"):
         detect_version({"swagger": "3.0"})
 
 
@@ -33,12 +33,12 @@ def test_detect_openapi31() -> None:
 
 
 def test_detect_openapi_unsupported() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Unsupported openapi"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Unsupported openapi"):
         detect_version({"openapi": "2.0"})
 
 
 def test_detect_missing() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Not a recognized"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Not a recognized"):
         detect_version({})
 
 
@@ -52,7 +52,7 @@ def test_get_schemas_swagger2_missing_definitions() -> None:
 
 
 def test_get_schemas_swagger2_bad_definitions() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="definitions"):
+    with pytest.raises(DynamicAPIClientSpecError, match="definitions"):
         get_schemas({"definitions": []}, "swagger2")
 
 
@@ -67,7 +67,7 @@ def test_get_schemas_oas3_no_components() -> None:
 
 
 def test_get_schemas_oas3_bad_schemas() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="components.schemas"):
+    with pytest.raises(DynamicAPIClientSpecError, match="components.schemas"):
         get_schemas({"components": {"schemas": "x"}}, "openapi3")
 
 
@@ -77,12 +77,12 @@ def test_get_base_url_override() -> None:
 
 
 def test_get_base_url_override_empty() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
         get_base_url({}, "swagger2", "  ")
 
 
 def test_get_base_url_swagger_no_host() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="host"):
+    with pytest.raises(DynamicAPIClientSpecError, match="host"):
         get_base_url({"swagger": "2.0"}, "swagger2", None)
 
 
@@ -105,22 +105,22 @@ def test_get_base_url_swagger_scheme_not_string_falls_back() -> None:
 
 
 def test_get_base_url_oas3_no_servers() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="servers"):
+    with pytest.raises(DynamicAPIClientSpecError, match="servers"):
         get_base_url({"openapi": "3.0.0"}, "openapi3", None)
 
 
 def test_get_base_url_oas3_bad_servers() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="servers"):
+    with pytest.raises(DynamicAPIClientSpecError, match="servers"):
         get_base_url({"openapi": "3.0.0", "servers": []}, "openapi3", None)
 
 
 def test_get_base_url_oas3_bad_first_server() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="servers\\[0\\]"):
+    with pytest.raises(DynamicAPIClientSpecError, match="servers\\[0\\]"):
         get_base_url({"openapi": "3.0.0", "servers": ["x"]}, "openapi3", None)
 
 
 def test_get_base_url_oas3_bad_url() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="url"):
+    with pytest.raises(DynamicAPIClientSpecError, match="url"):
         get_base_url({"openapi": "3.0.0", "servers": [{}]}, "openapi3", None)
 
 
@@ -148,32 +148,32 @@ def test_resolve_refs_simple() -> None:
 
 
 def test_resolve_refs_external_disallowed() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="internal"):
+    with pytest.raises(DynamicAPIClientSpecError, match="internal"):
         resolve_refs({}, {"$ref": "http://other/x.json"}, frozenset())
 
 
 def test_resolve_refs_invalid_pointer() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid"):
         resolve_refs({"a": 1}, {"$ref": "#/b"}, frozenset())
 
 
 def test_resolve_refs_circular() -> None:
     spec = {"x": {"$ref": "#/y"}, "y": {"$ref": "#/x"}}
-    with pytest.raises(PyAPIClientSpecError, match="Circular"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Circular"):
         resolve_refs(spec, spec["x"], frozenset())
 
 
 def test_resolve_refs_bad_ref_type() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="ref must be a string"):
+    with pytest.raises(DynamicAPIClientSpecError, match="ref must be a string"):
         resolve_refs({"a": 1}, {"$ref": 1}, frozenset())  # type: ignore[dict-item]
 
 
 def test_resolved_schema_not_object() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="object"):
+    with pytest.raises(DynamicAPIClientSpecError, match="object"):
         resolved_schema({}, "n", "bad")  # type: ignore[arg-type]
 
 
 def test_resolved_schema_resolved_value_not_object() -> None:
     spec = {"components": {"schemas": {"B": "scalar"}}}
-    with pytest.raises(PyAPIClientSpecError, match="not an object"):
+    with pytest.raises(DynamicAPIClientSpecError, match="not an object"):
         resolved_schema(spec, "A", {"$ref": "#/components/schemas/B"})

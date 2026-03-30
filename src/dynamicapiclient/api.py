@@ -8,18 +8,18 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pyapiclient.client import HTTPClient
-from pyapiclient.exceptions import PyAPIClientSpecError
-from pyapiclient.graphql_support import (
+from dynamicapiclient.client import HTTPClient
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
+from dynamicapiclient.graphql_support import (
     build_graphql_model_classes,
     looks_like_graphql_sdl,
     parse_graphql_schema,
     require_graphql,
 )
-from pyapiclient.loader import fetch_url_text, load_spec, parse_openapi_document, read_source_text
-from pyapiclient.models import Manager
-from pyapiclient.routing import build_bindings
-from pyapiclient.spec import detect_version, get_base_url, get_schemas, resolved_schema
+from dynamicapiclient.loader import fetch_url_text, load_spec, parse_openapi_document, read_source_text
+from dynamicapiclient.models import Manager
+from dynamicapiclient.routing import build_bindings
+from dynamicapiclient.spec import detect_version, get_base_url, get_schemas, resolved_schema
 
 
 def _is_http_url(s: str) -> bool:
@@ -39,12 +39,12 @@ def _is_graphql_path(source: str | Path) -> bool:
 def _sanitize_identifier(name: str) -> str:
     """Ensure schema name is a valid Python attribute (best effort)."""
     if not name:
-        raise PyAPIClientSpecError("Schema name cannot be empty.")
+        raise DynamicAPIClientSpecError("Schema name cannot be empty.")
     out = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
     if out[0].isdigit():
         out = "_" + out
     if not out.isidentifier():
-        raise PyAPIClientSpecError(f"Cannot map schema name {name!r} to a Python identifier.")
+        raise DynamicAPIClientSpecError(f"Cannot map schema name {name!r} to a Python identifier.")
     return out
 
 
@@ -81,7 +81,7 @@ class ModelsNamespace:
 
     def __repr__(self) -> str:
         names = ", ".join(sorted(self._registry))
-        return f"<pyapiclient.ModelsNamespace [{names}]>"
+        return f"<dynamicapiclient.ModelsNamespace [{names}]>"
 
     def model_names(self) -> tuple[str, ...]:
         return tuple(sorted(self._registry))
@@ -141,14 +141,14 @@ def _api_from_openapi_spec(
     family, ver = detect_version(spec)
     schemas_raw = get_schemas(spec, family)
     if not schemas_raw:
-        raise PyAPIClientSpecError("No schema definitions found (definitions / components.schemas).")
+        raise DynamicAPIClientSpecError("No schema definitions found (definitions / components.schemas).")
 
     try:
         resolved_base = get_base_url(spec, family, base_url)
-    except PyAPIClientSpecError:
+    except DynamicAPIClientSpecError:
         raise
     except Exception as e:  # defensive
-        raise PyAPIClientSpecError(str(e)) from e
+        raise DynamicAPIClientSpecError(str(e)) from e
 
     schema_names = set(schemas_raw.keys())
     bindings_map = build_bindings(spec, family, schema_names)
@@ -160,15 +160,15 @@ def _api_from_openapi_spec(
         safe = _sanitize_identifier(raw_name)
         if safe in registry:
             other = getattr(registry[safe], "__name__", safe)
-            raise PyAPIClientSpecError(
+            raise DynamicAPIClientSpecError(
                 f"Schema names {other!r} and {raw_name!r} both map to model attribute {safe!r}."
             )
         try:
             res_schema = resolved_schema(spec, raw_name, schemas_raw[raw_name])
-        except PyAPIClientSpecError:
+        except DynamicAPIClientSpecError:
             raise
         except RecursionError as e:
-            raise PyAPIClientSpecError(f"Schema {raw_name!r} could not be resolved ($ref cycle?).") from e
+            raise DynamicAPIClientSpecError(f"Schema {raw_name!r} could not be resolved ($ref cycle?).") from e
 
         bindings = bindings_map[raw_name]
 
@@ -176,10 +176,10 @@ def _api_from_openapi_spec(
             raw_name,
             (),
             {
-                "__module__": "pyapiclient.dynamic",
-                "_pyapiclient_schema": res_schema,
-                "_pyapiclient_bindings": bindings,
-                "_pyapiclient_client": http,
+                "__module__": "dynamicapiclient.dynamic",
+                "_dynamicapiclient_schema": res_schema,
+                "_dynamicapiclient_bindings": bindings,
+                "_dynamicapiclient_client": http,
                 "__doc__": f"Dynamic model for OpenAPI schema {raw_name!r}.",
             },
         )
@@ -202,7 +202,7 @@ def _api_from_graphql_text(
     require_graphql()
     schema = parse_graphql_schema(text)
     if base_url is None or not str(base_url).strip():
-        raise PyAPIClientSpecError(
+        raise DynamicAPIClientSpecError(
             "GraphQL schemas do not include an HTTP server URL. "
             "Pass base_url=... to api_make() (for example https://api.example.com)."
         )
@@ -246,7 +246,7 @@ def api_make(
     headers:
         Default headers for every request (e.g. authorization).
     timeout:
-        HTTP timeout in seconds when pyAPIClient creates its own client.
+        HTTP timeout in seconds when DynamicAPIClient creates its own client.
     http_client:
         Optional pre-built ``httpx.Client`` (for testing). When set, ``base_url`` should match
         the client's base URL or full URLs must work for your transport.
@@ -294,7 +294,7 @@ def api_make(
 
     try:
         sniff = read_source_text(source, timeout=timeout)
-    except PyAPIClientSpecError:
+    except DynamicAPIClientSpecError:
         sniff = None
     if sniff and looks_like_graphql_sdl(sniff):
         return _api_from_graphql_text(

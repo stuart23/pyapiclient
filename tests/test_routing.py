@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pyapiclient.exceptions import PyAPIClientSpecError
-from pyapiclient.routing import (
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
+from dynamicapiclient.routing import (
     OperationBinding,
     _list_item_ref_from_response,
     _list_query_params,
@@ -125,7 +125,7 @@ def test_list_query_params() -> None:
 
 
 def test_build_bindings_paths_not_object() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="paths"):
+    with pytest.raises(DynamicAPIClientSpecError, match="paths"):
         build_bindings({"paths": []}, "openapi3", {"A"})
 
 

@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from pyapiclient.api import api_make
-from pyapiclient.exceptions import PyAPIClientSpecError
+from dynamicapiclient.api import api_make
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
 
 
-def test_api_make_openapi_json_after_sniff_pyapiclient_error(
+def test_api_make_openapi_json_after_sniff_dynamicapiclient_error(
     swagger2_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -17,12 +17,12 @@ def test_api_make_openapi_json_after_sniff_pyapiclient_error(
     def flaky_read(source: str | Path, *, timeout: float) -> str:
         calls.append(1)
         if len(calls) == 1:
-            raise PyAPIClientSpecError("sniff path unavailable")
-        from pyapiclient.loader import read_source_text as real_read
+            raise DynamicAPIClientSpecError("sniff path unavailable")
+        from dynamicapiclient.loader import read_source_text as real_read
 
         return real_read(source, timeout=timeout)
 
-    monkeypatch.setattr("pyapiclient.api.read_source_text", flaky_read)
+    monkeypatch.setattr("dynamicapiclient.api.read_source_text", flaky_read)
     api = api_make(swagger2_path, http_client=None)
     assert api.spec_family == "swagger2"
     api.close()

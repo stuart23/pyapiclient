@@ -7,9 +7,9 @@ import httpx
 import pytest
 import respx
 
-from pyapiclient.api import api_make
-from pyapiclient.exceptions import PyAPIClientModelError, PyAPIClientSpecError
-from pyapiclient.graphql_support import (
+from dynamicapiclient.api import api_make
+from dynamicapiclient.exceptions import DynamicAPIClientModelError, DynamicAPIClientSpecError
+from dynamicapiclient.graphql_support import (
     build_graphql_model_classes,
     looks_like_graphql_sdl,
     parse_graphql_schema,
@@ -102,7 +102,7 @@ def test_api_make_graphql_str_path(library_graphql_path: Path) -> None:
 def test_api_make_graphql_requires_base(tmp_path: Path) -> None:
     p = tmp_path / "s.graphql"
     p.write_text("type Query { x: Int }", encoding="utf-8")
-    with pytest.raises(PyAPIClientSpecError, match="base_url"):
+    with pytest.raises(DynamicAPIClientSpecError, match="base_url"):
         api_make(p)
 
 
@@ -110,7 +110,7 @@ def test_build_graphql_model_classes_smoke(library_graphql_path: Path) -> None:
     schema = parse_graphql_schema(library_graphql_path.read_text(encoding="utf-8"))
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {}}))
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     http = HTTPClient("https://gql.test", client=hc)
     reg = build_graphql_model_classes(schema, graphql_path="/graphql", http_client=http)
@@ -171,7 +171,7 @@ def test_graphql_post_errors_raise(library_graphql_path: Path) -> None:
     )
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
     api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
-    with pytest.raises(PyAPIClientModelError, match="GraphQL errors"):
+    with pytest.raises(DynamicAPIClientModelError, match="GraphQL errors"):
         api.models.Author.objects.create(name="A", email="b@c.d")
     api.close()
 
@@ -180,7 +180,7 @@ def test_graphql_filter_unknown_arg(library_graphql_path: Path) -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {"authors": []}}))
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
     api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
-    with pytest.raises(PyAPIClientModelError, match="Unknown GraphQL arguments"):
+    with pytest.raises(DynamicAPIClientModelError, match="Unknown GraphQL arguments"):
         list(api.models.Author.objects.filter(nope="x"))
     api.close()
 
@@ -189,7 +189,7 @@ def test_client_post_graphql_success() -> None:
     def h(r: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"data": {"hello": 1}})
 
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     transport = httpx.MockTransport(h)
     with HTTPClient("https://x", client=httpx.Client(transport=transport)) as c:
@@ -198,41 +198,41 @@ def test_client_post_graphql_success() -> None:
 
 
 def test_parse_graphql_schema_empty() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="empty"):
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
         parse_graphql_schema("   ")
 
 
 def test_parse_graphql_schema_bad_json() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid JSON"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid JSON"):
         parse_graphql_schema("{not json")
 
 
 def test_parse_graphql_schema_invalid_sdl() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="Invalid GraphQL SDL"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Invalid GraphQL SDL"):
         parse_graphql_schema("type Broken {")
 
 
 def test_parse_graphql_schema_json_not_introspection() -> None:
-    with pytest.raises(PyAPIClientSpecError, match="introspection"):
+    with pytest.raises(DynamicAPIClientSpecError, match="introspection"):
         parse_graphql_schema('{"openapi":"3.0.0"}')
 
 
 def test_navigate_graphql_payload_missing_key() -> None:
-    from pyapiclient.graphql_support import navigate_graphql_payload
+    from dynamicapiclient.graphql_support import navigate_graphql_payload
 
-    with pytest.raises(PyAPIClientModelError, match="missing key"):
+    with pytest.raises(DynamicAPIClientModelError, match="missing key"):
         navigate_graphql_payload({"a": 1}, ("b",))
 
 
 def test_build_list_query_document_with_vars(library_graphql_path: Path) -> None:
-    from pyapiclient.graphql_support import build_list_query_document, parse_graphql_schema
+    from dynamicapiclient.graphql_support import build_list_query_document, parse_graphql_schema
 
     schema = parse_graphql_schema(library_graphql_path.read_text(encoding="utf-8"))
     q = schema.query_type
     assert q is not None
     field = q.fields["authors"]
     arg_sdls = {n: str(a.type) for n, a in field.args.items()}  # fallback if needed
-    from pyapiclient.graphql_support import _type_to_variable_type_sdl
+    from dynamicapiclient.graphql_support import _type_to_variable_type_sdl
 
     arg_sdls = {n: _type_to_variable_type_sdl(a.type) for n, a in field.args.items()}
     arg_types = {n: a.type for n, a in field.args.items()}
@@ -248,7 +248,7 @@ def test_build_list_query_document_with_vars(library_graphql_path: Path) -> None
 
 
 def test_input_json_schema_scalar_variants() -> None:
-    from pyapiclient.graphql_support import _input_to_json_schema, parse_graphql_schema
+    from dynamicapiclient.graphql_support import _input_to_json_schema, parse_graphql_schema
 
     schema = parse_graphql_schema(
         """
@@ -268,7 +268,7 @@ def test_graphql_fetch_list_not_array(library_graphql_path: Path) -> None:
     )
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
     api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
-    with pytest.raises(PyAPIClientModelError, match="list"):
+    with pytest.raises(DynamicAPIClientModelError, match="list"):
         list(api.models.Author.objects.all())
     api.close()
 
@@ -277,7 +277,7 @@ def test_coerce_graphql_variable_id() -> None:
     from graphql.type.definition import GraphQLNonNull, GraphQLScalarType
     from graphql.type.scalars import GraphQLID
 
-    from pyapiclient.graphql_support import coerce_graphql_variable
+    from dynamicapiclient.graphql_support import coerce_graphql_variable
 
     assert coerce_graphql_variable(GraphQLNonNull(GraphQLID), 5) == "5"
 
@@ -306,35 +306,35 @@ def test_client_post_graphql_errors() -> None:
     transport = httpx.MockTransport(
         lambda r: httpx.Response(200, json={"errors": [{"message": "e"}], "data": None})
     )
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     with HTTPClient("https://x", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientModelError, match="GraphQL errors"):
+        with pytest.raises(DynamicAPIClientModelError, match="GraphQL errors"):
             c.post_graphql("/g", "x")
 
 
 def test_client_post_graphql_missing_data_key() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True}))
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     with HTTPClient("https://x", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientModelError, match="data"):
+        with pytest.raises(DynamicAPIClientModelError, match="data"):
             c.post_graphql("/g", "query { x }")
 
 
 def test_client_post_graphql_data_not_object() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": []}))
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     with HTTPClient("https://x", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientModelError, match="object"):
+        with pytest.raises(DynamicAPIClientModelError, match="object"):
             c.post_graphql("/g", "query { x }")
 
 
 def test_client_post_graphql_raw_not_object() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, text='"x"'))
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     with HTTPClient("https://x", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientModelError, match="JSON object"):
+        with pytest.raises(DynamicAPIClientModelError, match="JSON object"):
             c.post_graphql("/g", "query { x }")

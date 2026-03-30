@@ -31,7 +31,7 @@ jobs:
       - name: Run tests with coverage
         run: >
           pytest -q
-          --cov=pyapiclient
+          --cov=dynamicapiclient
           --cov-report=xml
           --cov-report=term-missing
           --cov-fail-under=90

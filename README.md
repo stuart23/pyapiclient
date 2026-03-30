@@ -1,13 +1,13 @@
-# pyAPIClient
+# DynamicAPIClient
 
-[![CI](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/stuart23/pyapiclient/graph/badge.svg?branch=main)](https://codecov.io/gh/stuart23/pyapiclient)
+[![CI](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/stuart23/dynamicapiclient/graph/badge.svg?branch=main)](https://codecov.io/gh/stuart23/dynamicapiclient)
 
 Generate **Django-like** model classes from an **OpenAPI 2** or **OpenAPI 3** document, or a **GraphQL schema** (SDL or introspection JSON), as a URL or local file. OpenAPI schemas under `definitions` (v2) or `components.schemas` (v3) become models with `.objects` wired to REST paths. GraphQL **object types** become models whose `.objects` issues `query` / `mutation` operations against a single HTTP endpoint (default `POST /graphql`).
 
 ## Install
 
-The **PyPI distribution** is [`dynamicapiclient`](https://pypi.org/project/dynamicapiclient/) (`pip install dynamicapiclient`). The **Python import package** remains `pyapiclient` (`import pyapiclient`). This project is referred to as **pyAPIClient** in documentation.
+The **PyPI distribution** is [`dynamicapiclient`](https://pypi.org/project/dynamicapiclient/) (`pip install dynamicapiclient`). The **Python import package** remains `dynamicapiclient` (`import dynamicapiclient`). This project is referred to as **DynamicAPIClient** in documentation.
 
 ```bash
 pip install -e .
@@ -19,15 +19,17 @@ pip install -e ".[graphql]"
 
 Requires Python 3.10+. GraphQL requires the optional `graphql` extra (`graphql-core`).
 
+**GitHub:** badges and links in this README use the repository name **`dynamicapiclient`**. After you [rename the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository) on GitHub to match, update **PyPI → Publishing → trusted publisher** with the new repository path if you use OIDC publishing.
+
 ### Tests, coverage, and pre-commit
 
-CI-style checks use **≥90%** coverage on `pyapiclient` (see `pyproject.toml`). Run:
+CI-style checks use **≥90%** coverage on `dynamicapiclient` (see `pyproject.toml`). Run:
 
 ```bash
-pytest -q --cov=pyapiclient --cov-fail-under=90
+pytest -q --cov=dynamicapiclient --cov-fail-under=90
 ```
 
-[GitHub Actions](https://github.com/stuart23/pyapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/pyapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
+[GitHub Actions](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/dynamicapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
 
 With a **Git** checkout, install [`pre-commit`](https://pre-commit.com/) (`pip install pre-commit` or use the `dev` extra) and run `pre-commit install` so commits run the same pytest command via [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
 
@@ -40,7 +42,7 @@ Load the spec from disk and build the API object:
 ```python
 from pathlib import Path
 
-from pyapiclient import api_make  # or: from pyapiclient import apiMake
+from dynamicapiclient import api_make  # or: from dynamicapiclient import apiMake
 
 spec_path = Path("tests/fixtures/library_oas3.yaml")
 # Or an absolute path on your machine.
@@ -124,7 +126,7 @@ Install `graphql-core` (`pip install "dynamicapiclient[graphql]"`). Point `api_m
 ```python
 from pathlib import Path
 
-from pyapiclient import api_make
+from dynamicapiclient import api_make
 
 schema_path = Path("tests/fixtures/library.graphql")
 GQL = api_make(
@@ -135,19 +137,19 @@ GQL = api_make(
 author = GQL.models.Author.objects.create(name="Ada", email="ada@example.com")
 ```
 
-pyAPIClient infers operations using common patterns:
+DynamicAPIClient infers operations using common patterns:
 
 - **List**: a `Query` field whose return type is a list of the object type (e.g. `authors: [Author!]!`), optional `filter()` args match declared GraphQL arguments on that field.
 - **Get**: a `Query` field returning the type with an `id: ID!` (or `authorId`-style) argument.
 - **Create / update / delete**: `Mutation` fields whose names start with `create` / `add`, `update` / `edit`, or `delete` / `remove`, with `input` arguments for writes and `ID` arguments where needed.
 
-If your API uses different names, pyAPIClient may not find an operation; you will get a clear `PyAPIClientModelError`.
+If your API uses different names, DynamicAPIClient may not find an operation; you will get a clear `DynamicAPIClientModelError`.
 
 ## How it works (short)
 
 - Schemas become Python types on `api.models.<Name>`.
 - **OpenAPI**: CRUD routes are **inferred** from paths whose bodies or responses reference that schema.
 - **GraphQL**: CRUD maps to `query` / `mutation` documents sent to `graphql_path`, using the heuristics described above.
-- If the spec does not expose a clear operation for a model, calling the missing operation raises a clear `PyAPIClientModelError`.
+- If the spec does not expose a clear operation for a model, calling the missing operation raises a clear `DynamicAPIClientModelError`.
 
 For full behavior and edge cases, see the test suite under `tests/`.

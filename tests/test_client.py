@@ -3,8 +3,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from pyapiclient.client import HTTPClient
-from pyapiclient.exceptions import PyAPIClientHTTPError
+from dynamicapiclient.client import HTTPClient
+from dynamicapiclient.exceptions import DynamicAPIClientHTTPError
 
 
 def test_post_graphql_prepends_slash_to_path() -> None:
@@ -14,7 +14,7 @@ def test_post_graphql_prepends_slash_to_path() -> None:
         seen.append(r.url.path)
         return httpx.Response(200, json={"data": {}})
 
-    from pyapiclient.client import HTTPClient
+    from dynamicapiclient.client import HTTPClient
 
     transport = httpx.MockTransport(h)
     with HTTPClient("https://a", client=httpx.Client(transport=transport)) as c:
@@ -61,14 +61,14 @@ def test_client_injected_full_url() -> None:
 def test_client_http_error() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(500, text="err"))
     with HTTPClient("https://a", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientHTTPError, match="HTTP 500"):
+        with pytest.raises(DynamicAPIClientHTTPError, match="HTTP 500"):
             c.request_json("GET", "/z")
 
 
 def test_client_bad_json() -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, text="not-json{"))
     with HTTPClient("https://a", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientHTTPError, match="valid JSON"):
+        with pytest.raises(DynamicAPIClientHTTPError, match="valid JSON"):
             c.request_json("GET", "/z")
 
 
@@ -84,5 +84,5 @@ def test_client_request_error() -> None:
 
     transport = httpx.MockTransport(boom)
     with HTTPClient("https://a", client=httpx.Client(transport=transport)) as c:
-        with pytest.raises(PyAPIClientHTTPError, match="Request failed"):
+        with pytest.raises(DynamicAPIClientHTTPError, match="Request failed"):
             c.request_json("GET", "/z")

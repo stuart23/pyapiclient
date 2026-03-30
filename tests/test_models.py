@@ -5,9 +5,9 @@ import json
 import httpx
 import pytest
 
-from pyapiclient.client import HTTPClient
-from pyapiclient.exceptions import PyAPIClientModelError, PyAPIClientValidationError
-from pyapiclient.models import (
+from dynamicapiclient.client import HTTPClient
+from dynamicapiclient.exceptions import DynamicAPIClientModelError, DynamicAPIClientValidationError
+from dynamicapiclient.models import (
     Manager,
     ModelInstance,
     QuerySet,
@@ -16,7 +16,7 @@ from pyapiclient.models import (
     build_request_body,
     expand_path,
 )
-from pyapiclient.routing import ModelBindings, OperationBinding
+from dynamicapiclient.routing import ModelBindings, OperationBinding
 
 
 def _author_schema() -> dict:
@@ -44,9 +44,9 @@ def _make_author_model(client: HTTPClient, bindings: ModelBindings | None = None
         "Author",
         (),
         {
-            "_pyapiclient_schema": _author_schema(),
-            "_pyapiclient_bindings": b,
-            "_pyapiclient_client": client,
+            "_dynamicapiclient_schema": _author_schema(),
+            "_dynamicapiclient_bindings": b,
+            "_dynamicapiclient_client": client,
         },
     )
 
@@ -56,7 +56,7 @@ def test_expand_path_ok() -> None:
 
 
 def test_expand_path_missing_placeholder() -> None:
-    with pytest.raises(PyAPIClientModelError, match="Could not expand"):
+    with pytest.raises(DynamicAPIClientModelError, match="Could not expand"):
         expand_path("/a/{missing}", {})
 
 
@@ -81,7 +81,7 @@ def test_normalize_list_first_array_in_dict() -> None:
 
 
 def test_normalize_list_bad() -> None:
-    with pytest.raises(PyAPIClientModelError, match="unexpected"):
+    with pytest.raises(DynamicAPIClientModelError, match="unexpected"):
         _normalize_list_payload(42)
 
 
@@ -104,12 +104,12 @@ def test_serialize_model_instance_object_shape() -> None:
 def test_serialize_model_no_pk() -> None:
     m = _make_author_model(HTTPClient("https://x", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={})))))
     inst = ModelInstance(m, {"name": "x"})
-    with pytest.raises(PyAPIClientValidationError, match="primary key"):
+    with pytest.raises(DynamicAPIClientValidationError, match="primary key"):
         _serialize_value({"type": "integer"}, inst)
 
 
 def test_build_request_body_unknown_field() -> None:
-    with pytest.raises(PyAPIClientValidationError, match="Unknown field"):
+    with pytest.raises(DynamicAPIClientValidationError, match="Unknown field"):
         build_request_body(_author_schema(), {"nope": 1})
 
 
@@ -128,7 +128,7 @@ def test_model_instance_refresh_no_pk() -> None:
     m = _make_author_model(HTTPClient("https://x", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={})))))
     m.objects = Manager(m)
     inst = ModelInstance(m, {"name": "x"})
-    with pytest.raises(PyAPIClientModelError, match="primary key"):
+    with pytest.raises(DynamicAPIClientModelError, match="primary key"):
         inst.refresh_from_api()
 
 
@@ -138,13 +138,13 @@ def test_model_instance_refresh_no_manager() -> None:
         "NoObjects",
         (),
         {
-            "_pyapiclient_schema": _author_schema(),
-            "_pyapiclient_bindings": ModelBindings(),
-            "_pyapiclient_client": client,
+            "_dynamicapiclient_schema": _author_schema(),
+            "_dynamicapiclient_bindings": ModelBindings(),
+            "_dynamicapiclient_client": client,
         },
     )
     inst = ModelInstance(m, {"id": 1})
-    with pytest.raises(PyAPIClientModelError, match="objects manager"):
+    with pytest.raises(DynamicAPIClientModelError, match="objects manager"):
         inst.refresh_from_api()
 
 
@@ -225,7 +225,7 @@ def test_manager_create_empty_response() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="empty body"):
+    with pytest.raises(DynamicAPIClientModelError, match="empty body"):
         m.objects.create(name="x", email="y")
 
 
@@ -234,7 +234,7 @@ def test_manager_create_non_object_json() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="object JSON"):
+    with pytest.raises(DynamicAPIClientModelError, match="object JSON"):
         m.objects.create(name="x", email="y")
 
 
@@ -243,11 +243,11 @@ def test_manager_get_errors() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="get\\(\\) accepts"):
+    with pytest.raises(DynamicAPIClientModelError, match="get\\(\\) accepts"):
         m.objects.get(1, extra=1)  # type: ignore[call-arg]
-    with pytest.raises(PyAPIClientModelError, match="unexpected keyword"):
+    with pytest.raises(DynamicAPIClientModelError, match="unexpected keyword"):
         m.objects.get(pk=1, bad=2)  # type: ignore[call-arg]
-    with pytest.raises(PyAPIClientModelError, match="requires pk"):
+    with pytest.raises(DynamicAPIClientModelError, match="requires pk"):
         m.objects.get()
 
 
@@ -256,7 +256,7 @@ def test_manager_get_non_object() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="object JSON"):
+    with pytest.raises(DynamicAPIClientModelError, match="object JSON"):
         m.objects.get(1)
 
 
@@ -268,19 +268,19 @@ def test_manager_no_bindings() -> None:
         "X",
         (),
         {
-            "_pyapiclient_schema": _author_schema(),
-            "_pyapiclient_bindings": empty,
-            "_pyapiclient_client": client,
+            "_dynamicapiclient_schema": _author_schema(),
+            "_dynamicapiclient_bindings": empty,
+            "_dynamicapiclient_client": client,
         },
     )
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="No create"):
+    with pytest.raises(DynamicAPIClientModelError, match="No create"):
         m.objects.create(name="a", email="b")
-    with pytest.raises(PyAPIClientModelError, match="No retrieve"):
+    with pytest.raises(DynamicAPIClientModelError, match="No retrieve"):
         m.objects.get(1)
-    with pytest.raises(PyAPIClientModelError, match="No list"):
+    with pytest.raises(DynamicAPIClientModelError, match="No list"):
         m.objects.filter()
-    with pytest.raises(PyAPIClientModelError, match="No list"):
+    with pytest.raises(DynamicAPIClientModelError, match="No list"):
         list(m.objects.all())
 
 
@@ -289,7 +289,7 @@ def test_manager_filter_unknown_query() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="Unknown query"):
+    with pytest.raises(DynamicAPIClientModelError, match="Unknown query"):
         m.objects.filter(badparam=1)
 
 
@@ -298,7 +298,7 @@ def test_manager_list_item_not_object() -> None:
     client = HTTPClient("https://api", client=httpx.Client(transport=transport))
     m = _make_author_model(client)
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="List item"):
+    with pytest.raises(DynamicAPIClientModelError, match="List item"):
         list(m.objects.all())
 
 
@@ -308,22 +308,22 @@ def test_manager_update_delete_errors() -> None:
     m = _make_author_model(client)
     m.objects = Manager(m)
     other = type("Other", (), {})()
-    with pytest.raises(PyAPIClientModelError, match="model instance"):
+    with pytest.raises(DynamicAPIClientModelError, match="model instance"):
         m.objects.update(other, name="z")  # type: ignore[arg-type]
     inst = ModelInstance(m, {"id": 1, "name": "a", "email": "e"})
     other_m = _make_author_model(client)
     other_m.objects = Manager(other_m)
     bad_inst = ModelInstance(other_m, {"id": 1, "name": "a", "email": "e"})
-    with pytest.raises(PyAPIClientModelError, match="different model"):
+    with pytest.raises(DynamicAPIClientModelError, match="different model"):
         m.objects.update(bad_inst, name="z")
     no_pk = ModelInstance(m, {"name": "a", "email": "e"})
-    with pytest.raises(PyAPIClientModelError, match="primary key"):
+    with pytest.raises(DynamicAPIClientModelError, match="primary key"):
         m.objects.update(no_pk, name="z")
-    with pytest.raises(PyAPIClientModelError, match="model instance"):
+    with pytest.raises(DynamicAPIClientModelError, match="model instance"):
         m.objects.delete(other)  # type: ignore[arg-type]
-    with pytest.raises(PyAPIClientModelError, match="different model"):
+    with pytest.raises(DynamicAPIClientModelError, match="different model"):
         m.objects.delete(bad_inst)
-    with pytest.raises(PyAPIClientModelError, match="primary key"):
+    with pytest.raises(DynamicAPIClientModelError, match="primary key"):
         m.objects.delete(no_pk)
 
 
@@ -343,7 +343,7 @@ def test_manager_update_non_object_body() -> None:
     m = _make_author_model(client)
     m.objects = Manager(m)
     inst = ModelInstance(m, {"id": 1, "name": "a", "email": "e"})
-    with pytest.raises(PyAPIClientModelError, match="object JSON"):
+    with pytest.raises(DynamicAPIClientModelError, match="object JSON"):
         m.objects.update(inst, name="z")
 
 
@@ -357,10 +357,10 @@ def test_manager_retrieve_no_path_param() -> None:
     m = type(
         "Author",
         (),
-        {"_pyapiclient_schema": _author_schema(), "_pyapiclient_bindings": b, "_pyapiclient_client": client},
+        {"_dynamicapiclient_schema": _author_schema(), "_dynamicapiclient_bindings": b, "_dynamicapiclient_client": client},
     )
     m.objects = Manager(m)
-    with pytest.raises(PyAPIClientModelError, match="path parameter"):
+    with pytest.raises(DynamicAPIClientModelError, match="path parameter"):
         m.objects.get(1)
 
 
@@ -374,11 +374,11 @@ def test_manager_delete_no_path_param() -> None:
     m = type(
         "Author",
         (),
-        {"_pyapiclient_schema": _author_schema(), "_pyapiclient_bindings": b, "_pyapiclient_client": client},
+        {"_dynamicapiclient_schema": _author_schema(), "_dynamicapiclient_bindings": b, "_dynamicapiclient_client": client},
     )
     m.objects = Manager(m)
     inst = ModelInstance(m, {"id": 1, "name": "a", "email": "e"})
-    with pytest.raises(PyAPIClientModelError, match="path parameter"):
+    with pytest.raises(DynamicAPIClientModelError, match="path parameter"):
         m.objects.delete(inst)
 
 

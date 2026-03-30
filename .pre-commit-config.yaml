@@ -11,5 +11,5 @@ repos:
         always_run: true
         args:
           - -q
-          - --cov=pyapiclient
+          - --cov=dynamicapiclient
           - --cov-fail-under=90

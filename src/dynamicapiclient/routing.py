@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from pyapiclient.exceptions import PyAPIClientSpecError
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError
 
 
 @dataclass
@@ -173,7 +173,7 @@ def build_bindings(spec: dict[str, Any], family: str, schema_names: set[str]) ->
     """
     paths = spec.get("paths")
     if not isinstance(paths, dict):
-        raise PyAPIClientSpecError("'paths' must be an object.")
+        raise DynamicAPIClientSpecError("'paths' must be an object.")
 
     bindings: dict[str, ModelBindings] = {n: ModelBindings() for n in schema_names}
 

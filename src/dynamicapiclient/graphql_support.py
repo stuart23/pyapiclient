@@ -7,8 +7,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from pyapiclient.exceptions import PyAPIClientConfigurationError, PyAPIClientModelError, PyAPIClientSpecError
-from pyapiclient.routing import ModelBindings
+from dynamicapiclient.exceptions import DynamicAPIClientConfigurationError, DynamicAPIClientModelError, DynamicAPIClientSpecError
+from dynamicapiclient.routing import ModelBindings
 
 if TYPE_CHECKING:
     from graphql.type.definition import (
@@ -40,8 +40,8 @@ except ImportError:  # pragma: no cover
 
 def require_graphql() -> None:
     if build_schema is None:
-        raise PyAPIClientConfigurationError(
-            "GraphQL support requires the graphql-core package. Install with: pip install 'pyapiclient[graphql]'"
+        raise DynamicAPIClientConfigurationError(
+            "GraphQL support requires the graphql-core package. Install with: pip install 'dynamicapiclient[graphql]'"
         )
 
 
@@ -49,29 +49,29 @@ def parse_graphql_schema(text: str) -> GraphQLSchema:
     require_graphql()
     raw = text.strip()
     if not raw:
-        raise PyAPIClientSpecError("GraphQL schema document is empty.")
+        raise DynamicAPIClientSpecError("GraphQL schema document is empty.")
     if raw.startswith("{"):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            raise PyAPIClientSpecError(f"Invalid JSON (expected GraphQL introspection): {e}") from e
+            raise DynamicAPIClientSpecError(f"Invalid JSON (expected GraphQL introspection): {e}") from e
         if not isinstance(data, dict):
-            raise PyAPIClientSpecError("GraphQL introspection JSON must be an object.")
+            raise DynamicAPIClientSpecError("GraphQL introspection JSON must be an object.")
         inner = data.get("data") if "data" in data else data
         if not isinstance(inner, dict) or "__schema" not in inner:
-            raise PyAPIClientSpecError(
+            raise DynamicAPIClientSpecError(
                 "GraphQL introspection JSON must contain '__schema' (or wrap it in {\"data\": {...}})."
             )
         try:
             return build_client_schema(inner)  # type: ignore[misc]
         except Exception as e:
-            raise PyAPIClientSpecError(f"Invalid GraphQL introspection payload: {e}") from e
+            raise DynamicAPIClientSpecError(f"Invalid GraphQL introspection payload: {e}") from e
     try:
         return build_schema(raw)  # type: ignore[misc]
     except GraphQLError as e:  # type: ignore[misc]
-        raise PyAPIClientSpecError(f"Invalid GraphQL SDL: {e}") from e
+        raise DynamicAPIClientSpecError(f"Invalid GraphQL SDL: {e}") from e
     except Exception as e:
-        raise PyAPIClientSpecError(f"Invalid GraphQL SDL: {e}") from e
+        raise DynamicAPIClientSpecError(f"Invalid GraphQL SDL: {e}") from e
 
 
 def _type_to_variable_type_sdl(gql_type: Any) -> str:
@@ -235,7 +235,7 @@ def navigate_graphql_payload(node: Any, path: tuple[str, ...]) -> Any:
     cur = node
     for k in path:
         if not isinstance(cur, dict) or k not in cur:
-            raise PyAPIClientModelError(f"GraphQL response missing key {k!r} at path {path!r}.")
+            raise DynamicAPIClientModelError(f"GraphQL response missing key {k!r} at path {path!r}.")
         cur = cur[k]
     return cur
 
@@ -259,7 +259,7 @@ def build_list_query_document(
     allowed = set(arg_sdls)
     bad = set(params) - allowed
     if bad:
-        raise PyAPIClientModelError(
+        raise DynamicAPIClientModelError(
             f"Unknown GraphQL arguments for list field {field_name!r}: {', '.join(sorted(bad))}. "
             f"Allowed: {', '.join(sorted(allowed)) or '(none)'}"
         )
@@ -284,7 +284,7 @@ def graphql_execute_data(
 ) -> dict[str, Any]:
     data = client.post_graphql(path, document, variables=variables)
     if not isinstance(data, dict):
-        raise PyAPIClientModelError("GraphQL response data is not an object.")
+        raise DynamicAPIClientModelError("GraphQL response data is not an object.")
     return data
 
 
@@ -450,8 +450,8 @@ def build_graphql_model_classes(
     graphql_path: str,
     http_client: Any,
 ) -> dict[str, type]:
-    from pyapiclient.api import _sanitize_identifier
-    from pyapiclient.models import Manager
+    from dynamicapiclient.api import _sanitize_identifier
+    from dynamicapiclient.models import Manager
 
     registry: dict[str, type] = {}
     for obj_t in _model_object_types(schema):
@@ -462,12 +462,12 @@ def build_graphql_model_classes(
             obj_t.name,
             (),
             {
-                "__module__": "pyapiclient.dynamic",
-                "_pyapiclient_kind": "graphql",
-                "_pyapiclient_schema": rt.object_schema,
-                "_pyapiclient_bindings": ModelBindings(),
-                "_pyapiclient_client": http_client,
-                "_pyapiclient_graphql": rt,
+                "__module__": "dynamicapiclient.dynamic",
+                "_dynamicapiclient_kind": "graphql",
+                "_dynamicapiclient_schema": rt.object_schema,
+                "_dynamicapiclient_bindings": ModelBindings(),
+                "_dynamicapiclient_client": http_client,
+                "_dynamicapiclient_graphql": rt,
                 "__doc__": f"Dynamic model for GraphQL type {obj_t.name!r}.",
             },
         )
@@ -475,12 +475,12 @@ def build_graphql_model_classes(
         safe = _sanitize_identifier(obj_t.name)
         if safe in registry:
             other = getattr(registry[safe], "__name__", safe)
-            raise PyAPIClientSpecError(
+            raise DynamicAPIClientSpecError(
                 f"GraphQL types {other!r} and {obj_t.name!r} both map to model attribute {safe!r}."
             )
         registry[safe] = model_cls
     if not registry:
-        raise PyAPIClientSpecError(
+        raise DynamicAPIClientSpecError(
             "No GraphQL object types with inferrable Query/Mutation fields were found. "
             "Define list/get/create/update/delete fields using conventional names (e.g. authors, author, createAuthor)."
         )

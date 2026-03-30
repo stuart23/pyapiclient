@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pyapiclient.exceptions import PyAPIClientValidationError
+from dynamicapiclient.exceptions import DynamicAPIClientValidationError
 
 
 def _type_ok(value: Any, schema: dict[str, Any]) -> bool:
@@ -36,11 +36,11 @@ def validate_payload(schema: dict[str, Any], data: Any, *, context: str) -> None
     """
     Validate ``data`` against a resolved schema object (subset of JSON Schema).
 
-    Raises PyAPIClientValidationError on failure.
+    Raises DynamicAPIClientValidationError on failure.
     """
     if schema.get("type") == "object" or "properties" in schema:
         if not isinstance(data, dict):
-            raise PyAPIClientValidationError(f"{context}: expected object, got {type(data).__name__}.")
+            raise DynamicAPIClientValidationError(f"{context}: expected object, got {type(data).__name__}.")
         props = schema.get("properties")
         if not isinstance(props, dict):
             props = {}
@@ -75,14 +75,14 @@ def validate_payload(schema: dict[str, Any], data: Any, *, context: str) -> None
             if isinstance(val, dict) and sub.get("type") == "object" and "properties" in sub:
                 try:
                     validate_payload(sub, val, context=f"{context}.{key}")
-                except PyAPIClientValidationError as e:
+                except DynamicAPIClientValidationError as e:
                     errors.extend(e.errors or [str(e)])
         if errors:
             detail = "; ".join(errors)
-            raise PyAPIClientValidationError(f"{context} validation failed: {detail}", errors=errors)
+            raise DynamicAPIClientValidationError(f"{context} validation failed: {detail}", errors=errors)
         return
 
     if not _type_ok(data, schema):
-        raise PyAPIClientValidationError(
+        raise DynamicAPIClientValidationError(
             f"{context}: value {data!r} incompatible with type {schema.get('type')!r}."
         )

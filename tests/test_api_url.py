@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 import respx
 
-from pyapiclient.api import api_make
+from dynamicapiclient.api import api_make
 
 # Published OpenAPI document for Apache Airflow’s stable REST API (same path as docs).
 AIRFLOW_OPENAPI_SPEC_URL = (
