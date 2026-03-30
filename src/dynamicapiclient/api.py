@@ -301,7 +301,12 @@ def api_make(
     Parameters
     ----------
     source:
-        HTTPS URL or filesystem path to JSON/YAML OpenAPI, ``.graphql`` / ``.gql`` SDL, or introspection JSON.
+        Where to load the spec from:
+
+        - A :class:`pathlib.Path` to a local file (OpenAPI JSON/YAML, GraphQL ``.graphql`` / ``.gql``,
+          or introspection JSON).
+        - A filesystem path as a string (same file types as above). Must not be an ``http(s)`` URL.
+        - An ``http`` or ``https`` URL whose response body is the spec (OpenAPI or GraphQL).
     base_url:
         HTTP root for requests. If omitted, the URL from the OpenAPI ``servers`` / ``host`` entry is used;
         for GraphQL loaded from an ``http(s)`` schema URL, the URL's origin (scheme + host) is used.

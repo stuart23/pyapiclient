@@ -3,7 +3,7 @@
 [![CI](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/stuart23/dynamicapiclient/graph/badge.svg?branch=main)](https://codecov.io/gh/stuart23/dynamicapiclient)
 
-Generate **Django-like** model classes from an **OpenAPI 2** or **OpenAPI 3** document, or a **GraphQL schema** (SDL or introspection JSON), as a URL or local file. OpenAPI schemas under `definitions` (v2) or `components.schemas` (v3) become models with `.objects` wired to REST paths. GraphQL **object types** become models whose `.objects` issues `query` / `mutation` operations against a single HTTP endpoint (default `POST /graphql`).
+Generate **Django-like** model classes from an **OpenAPI 2** or **OpenAPI 3** document, or a **GraphQL schema** (SDL or introspection JSON). Pass the spec to `api_make` as a **`pathlib.Path`**, a **string path** to a file on disk, or an **`http` / `https` URL** that returns the document. OpenAPI schemas under `definitions` (v2) or `components.schemas` (v3) become models with `.objects` wired to REST paths. GraphQL **object types** become models whose `.objects` issues `query` / `mutation` operations against a single HTTP endpoint (default `POST /graphql`).
 
 ## Install
 
@@ -25,18 +25,28 @@ Requires Python 3.10+. GraphQL requires the optional `graphql` extra (`graphql-c
 
 This repo includes a sample OpenAPI 3 spec at [`tests/fixtures/library_oas3.yaml`](tests/fixtures/library_oas3.yaml). It describes a small “library” API with `Author` and `Book` schemas and paths under `https://api.example.com/v1`.
 
-Load the spec from disk and build the API object:
+`api_make` accepts the spec as a **`Path`**, a **string path**, or a **URL**:
 
 ```python
 from pathlib import Path
 
 from dynamicapiclient import api_make  # or: from dynamicapiclient import apiMake
 
-spec_path = Path("tests/fixtures/library_oas3.yaml")
-# Or an absolute path on your machine.
+# pathlib.Path (typical in application code)
+MyAPI = api_make(Path("tests/fixtures/library_oas3.yaml"))
 
-MyAPI = api_make(spec_path)
+# Same file as a string path (relative or absolute on your machine)
+MyAPI = api_make("tests/fixtures/library_oas3.yaml")
+
+# HTTPS URL (fetches the spec over the network; example: raw file on GitHub)
+MyAPI = api_make(
+    "https://raw.githubusercontent.com/stuart23/dynamicapiclient/"
+    "refs/heads/main/tests/fixtures/library_oas3.yaml"
+)
 ```
+
+The live fixture used in tests is also available at  
+[library_oas3.yaml on `main`](https://raw.githubusercontent.com/stuart23/dynamicapiclient/refs/heads/main/tests/fixtures/library_oas3.yaml).
 
 Discover generated models (works well in a REPL):
 
@@ -49,7 +59,7 @@ MyAPI.models.model_names() # ('Author', 'Book')
 The spec’s `servers[0].url` is used as the HTTP base URL unless you override it:
 
 ```python
-MyAPI = api_make(spec_path, base_url="http://localhost:8000/v1")
+MyAPI = api_make(Path("tests/fixtures/library_oas3.yaml"), base_url="http://localhost:8000/v1")
 ```
 
 ### Creating and reading resources
@@ -97,8 +107,11 @@ DynamicAPIClient does not read OpenAPI `security` / `securitySchemes` or GraphQL
 Pass a `headers` dict to `api_make()`. Those headers are sent on **every** REST call and **every** GraphQL POST (the client passes them on each `httpx` request).
 
 ```python
+from pathlib import Path
+
+spec = Path("tests/fixtures/library_oas3.yaml")
 MyAPI = api_make(
-    spec_path,
+    spec,
     headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
 )
 ```
@@ -107,12 +120,13 @@ Other common patterns:
 
 ```python
 # API key in a header
-api_make(spec_path, headers={"X-API-Key": "secret"})
+api_make("tests/fixtures/library_oas3.yaml", headers={"X-API-Key": "secret"})
 
 # Basic auth (raw header; or use http_client below)
 import base64
+
 token = base64.b64encode(b"user:pass").decode()
-api_make(spec_path, headers={"Authorization": f"Basic {token}"})
+api_make("tests/fixtures/library_oas3.yaml", headers={"Authorization": f"Basic {token}"})
 ```
 
 Use the header names and formats your API expects (many OpenAPI specs document them under `components.securitySchemes`—copy the scheme into `headers` yourself).
@@ -123,20 +137,30 @@ For flows that fit [`httpx`’s `Auth` API](https://www.python-httpx.org/advance
 
 ```python
 import httpx
+from pathlib import Path
+
 from dynamicapiclient import api_make
 
 client = httpx.Client(
     base_url="https://api.example.com/v1",
     headers={"Authorization": "Bearer ..."},
 )
-MyAPI = api_make(spec_path, http_client=client, base_url="https://api.example.com/v1")
+MyAPI = api_make(
+    Path("tests/fixtures/library_oas3.yaml"),
+    http_client=client,
+    base_url="https://api.example.com/v1",
+)
 ```
 
 ### Loading from a URL
 
+Any `http`/`https` string that is not a local path is fetched as the spec body:
+
 ```python
 MyAPI = api_make("https://example.com/openapi.yaml")
 ```
+
+The [library fixture on GitHub](https://raw.githubusercontent.com/stuart23/dynamicapiclient/refs/heads/main/tests/fixtures/library_oas3.yaml) is a concrete OpenAPI 3 example you can pass directly to `api_make` (see Quick start above).
 
 ### Swagger 2 example
 
@@ -185,6 +209,8 @@ CI-style checks use **≥90%** coverage on `dynamicapiclient` (see `pyproject.to
 ```bash
 pytest -q --cov=dynamicapiclient --cov-fail-under=90
 ```
+
+One test (`tests/test_api_make_sources.py`) fetches the public OpenAPI fixture from raw GitHub and is marked **`network`** (outbound HTTPS). To skip it offline: `pytest -m "not network" -q --cov=dynamicapiclient --cov-fail-under=90`.
 
 [GitHub Actions](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/dynamicapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
 
