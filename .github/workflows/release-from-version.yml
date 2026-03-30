@@ -1,6 +1,11 @@
 # When [project].version changes on main (any edit to pyproject.toml), create a
-# GitHub Release and tag v{version} if that tag does not exist yet. The existing
-# "Publish to PyPI" workflow then runs on release published.
+# GitHub Release and tag v{version} if that tag does not exist yet, then publish
+# to PyPI in this same workflow.
+#
+# GitHub does not run other workflows in response to events raised with the
+# default GITHUB_TOKEN (e.g. creating a release here), so publish-pypi.yml would
+# never fire for bot-created releases. Manual releases from the UI still trigger
+# publish-pypi.yml normally.
 
 name: Release from pyproject version
 
@@ -12,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   maybe-release:
@@ -56,3 +62,22 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
+
+      - uses: actions/setup-python@v5
+        if: steps.tag.outputs.exists == 'false'
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        if: steps.tag.outputs.exists == 'false'
+        run: pip install --upgrade build
+
+      - name: Build sdist and wheel
+        if: steps.tag.outputs.exists == 'false'
+        run: python -m build
+
+      - name: Publish to PyPI
+        if: steps.tag.outputs.exists == 'false'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
