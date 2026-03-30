@@ -50,30 +50,26 @@ def get_schemas(spec: dict[str, Any], family: str) -> dict[str, Any]:
     return schemas
 
 
-def get_base_url(spec: dict[str, Any], family: str, override: str | None) -> str:
-    if override is not None:
-        u = override.strip().rstrip("/")
-        if not u:
-            raise DynamicAPIClientSpecError("base_url override is empty.")
-        return u
+def openapi_spec_base_url(spec: dict[str, Any], family: str) -> str | None:
+    """
+    Return the HTTP base URL declared in the OpenAPI document, or ``None`` if missing.
+
+    Malformed ``servers`` / ``host`` shapes still raise :class:`DynamicAPIClientSpecError`.
+    """
     if family == "swagger2":
         schemes = spec.get("schemes") or ["https"]
         scheme = schemes[0] if isinstance(schemes, list) and schemes else "https"
         if not isinstance(scheme, str):
             scheme = "https"
         host = spec.get("host") or ""
+        if not host or not str(host).strip():
+            return None
         base_path = spec.get("basePath") or ""
-        if not host:
-            raise DynamicAPIClientSpecError(
-                "Swagger 2.0 spec has no 'host'; pass base_url=... to api_make()."
-            )
         path = base_path if base_path.startswith("/") else f"/{base_path}" if base_path else ""
         return f"{scheme}://{host}".rstrip("/") + (path.rstrip("/") if path else "")
     servers = spec.get("servers")
-    if not servers or not isinstance(servers, list):
-        raise DynamicAPIClientSpecError(
-            "OpenAPI 3 spec has no 'servers' entry; pass base_url=... to api_make()."
-        )
+    if not servers or not isinstance(servers, list) or len(servers) == 0:
+        return None
     first = servers[0]
     if not isinstance(first, dict):
         raise DynamicAPIClientSpecError("'servers[0]' must be an object with 'url'.")
@@ -81,6 +77,25 @@ def get_base_url(spec: dict[str, Any], family: str, override: str | None) -> str
     if not url or not isinstance(url, str):
         raise DynamicAPIClientSpecError("OpenAPI 3 'servers[0].url' is missing or invalid.")
     return url.rstrip("/")
+
+
+def get_base_url(spec: dict[str, Any], family: str, override: str | None) -> str:
+    """Resolve base URL without logging (tests and low-level callers)."""
+    if override is not None:
+        u = override.strip().rstrip("/")
+        if not u:
+            raise DynamicAPIClientSpecError("base_url override is empty.")
+        return u
+    spec_url = openapi_spec_base_url(spec, family)
+    if spec_url is None:
+        if family == "swagger2":
+            raise DynamicAPIClientSpecError(
+                "Swagger 2.0 spec has no 'host'; pass base_url=... to api_make()."
+            )
+        raise DynamicAPIClientSpecError(
+            "OpenAPI 3 spec has no 'servers' entry; pass base_url=... to api_make()."
+        )
+    return spec_url
 
 
 def _json_pointer_resolve(doc: dict[str, Any], pointer: str) -> Any:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -19,7 +20,9 @@ from dynamicapiclient.graphql_support import (
 from dynamicapiclient.loader import fetch_url_text, load_spec, parse_openapi_document, read_source_text
 from dynamicapiclient.models import Manager
 from dynamicapiclient.routing import build_bindings
-from dynamicapiclient.spec import detect_version, get_base_url, get_schemas, resolved_schema
+from dynamicapiclient.spec import detect_version, get_schemas, openapi_spec_base_url, resolved_schema
+
+logger = logging.getLogger(__name__)
 
 
 def _is_http_url(s: str) -> bool:
@@ -34,6 +37,46 @@ def _is_graphql_path(source: str | Path) -> bool:
         p = Path(source.strip()).expanduser()
         return p.is_file() and p.suffix.lower() in (".graphql", ".gql")
     return False
+
+
+def _graphql_http_origin(http_source: str) -> str | None:
+    """If ``http_source`` is an http(s) URL, return ``scheme://netloc``; else ``None``."""
+    s = http_source.strip()
+    if not _is_http_url(s):
+        return None
+    p = urlparse(s)
+    if not p.scheme or not p.netloc:
+        return None
+    return f"{p.scheme}://{p.netloc}".rstrip("/")
+
+
+def _resolve_openapi_base_url(spec: dict[str, Any], family: str, base_url: str | None) -> str:
+    spec_url = openapi_spec_base_url(spec, family)
+    if base_url is not None:
+        u = base_url.strip().rstrip("/")
+        if not u:
+            raise DynamicAPIClientSpecError("base_url override is empty.")
+        if spec_url is not None:
+            logger.info(
+                "api_make: using base_url=%r from argument; OpenAPI spec defines %r.",
+                u,
+                spec_url,
+            )
+        else:
+            logger.info(
+                "api_make: using base_url=%r from argument; OpenAPI spec has no server URL.",
+                u,
+            )
+        return u
+    if spec_url is None:
+        if family == "swagger2":
+            raise DynamicAPIClientSpecError(
+                "Swagger 2.0 spec has no 'host'; pass base_url=... to api_make()."
+            )
+        raise DynamicAPIClientSpecError(
+            "OpenAPI 3 spec has no 'servers' entry; pass base_url=... to api_make()."
+        )
+    return spec_url
 
 
 def _sanitize_identifier(name: str) -> str:
@@ -144,7 +187,7 @@ def _api_from_openapi_spec(
         raise DynamicAPIClientSpecError("No schema definitions found (definitions / components.schemas).")
 
     try:
-        resolved_base = get_base_url(spec, family, base_url)
+        resolved_base = _resolve_openapi_base_url(spec, family, base_url)
     except DynamicAPIClientSpecError:
         raise
     except Exception as e:  # defensive
@@ -198,15 +241,35 @@ def _api_from_graphql_text(
     headers: dict[str, str] | None,
     timeout: float,
     http_client: httpx.Client | None,
+    source_http_url: str | None = None,
 ) -> API:
     require_graphql()
     schema = parse_graphql_schema(text)
-    if base_url is None or not str(base_url).strip():
+    inferred = _graphql_http_origin(source_http_url) if source_http_url else None
+    if base_url is not None:
+        u = str(base_url).strip().rstrip("/")
+        if not u:
+            raise DynamicAPIClientSpecError("base_url override is empty.")
+        if inferred is not None:
+            logger.info(
+                "api_make: using base_url=%r from argument; GraphQL schema was loaded from %r (URL origin %r).",
+                u,
+                source_http_url,
+                inferred,
+            )
+        else:
+            logger.info(
+                "api_make: using base_url=%r from argument; GraphQL schema has no HTTP URL in the document.",
+                u,
+            )
+        resolved = u
+    elif inferred is not None:
+        resolved = inferred
+    else:
         raise DynamicAPIClientSpecError(
-            "GraphQL schemas do not include an HTTP server URL. "
-            "Pass base_url=... to api_make() (for example https://api.example.com)."
+            "GraphQL schema has no server URL. Pass base_url=... to api_make(), "
+            "or load the schema from an http(s) URL whose origin should be used as the API base."
         )
-    resolved = str(base_url).strip().rstrip("/")
     gp = graphql_path.strip() or "/graphql"
     if not gp.startswith("/"):
         gp = "/" + gp
@@ -240,7 +303,10 @@ def api_make(
     source:
         HTTPS URL or filesystem path to JSON/YAML OpenAPI, ``.graphql`` / ``.gql`` SDL, or introspection JSON.
     base_url:
-        HTTP root for requests. Required for GraphQL. For OpenAPI, optional if ``servers`` / ``host`` exist.
+        HTTP root for requests. If omitted, the URL from the OpenAPI ``servers`` / ``host`` entry is used;
+        for GraphQL loaded from an ``http(s)`` schema URL, the URL's origin (scheme + host) is used.
+        Passing ``base_url`` always wins and is logged at INFO. If the spec defines no server URL and
+        ``base_url`` is omitted, :class:`DynamicAPIClientSpecError` is raised.
     graphql_path:
         URL path for GraphQL POST (default ``/graphql``). Only used for GraphQL schemas.
     headers:
@@ -260,10 +326,12 @@ def api_make(
             headers=headers,
             timeout=timeout,
             http_client=http_client,
+            source_http_url=None,
         )
 
     if isinstance(source, str) and _is_http_url(source.strip()):
-        text = fetch_url_text(source.strip(), timeout=timeout)
+        src = source.strip()
+        text = fetch_url_text(src, timeout=timeout)
         if looks_like_graphql_sdl(text):
             return _api_from_graphql_text(
                 text,
@@ -272,6 +340,7 @@ def api_make(
                 headers=headers,
                 timeout=timeout,
                 http_client=http_client,
+                source_http_url=src,
             )
         spec = parse_openapi_document(text)
         return _api_from_openapi_spec(
@@ -304,6 +373,7 @@ def api_make(
             headers=headers,
             timeout=timeout,
             http_client=http_client,
+            source_http_url=None,
         )
 
     spec = load_spec(source, timeout=timeout)

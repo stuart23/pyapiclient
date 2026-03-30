@@ -7,6 +7,7 @@ from dynamicapiclient.spec import (
     detect_version,
     get_base_url,
     get_schemas,
+    openapi_spec_base_url,
     resolve_refs,
     resolved_schema,
 )
@@ -131,6 +132,18 @@ def test_get_base_url_oas3_ok() -> None:
         None,
     )
     assert u == "https://x.y"
+
+
+def test_openapi_spec_base_url_swagger_no_host() -> None:
+    assert openapi_spec_base_url({"swagger": "2.0"}, "swagger2") is None
+
+
+def test_openapi_spec_base_url_oas3_no_servers() -> None:
+    assert openapi_spec_base_url({"openapi": "3.0.0"}, "openapi3") is None
+
+
+def test_openapi_spec_base_url_oas3_empty_servers() -> None:
+    assert openapi_spec_base_url({"openapi": "3.0.0", "servers": []}, "openapi3") is None
 
 
 def test_resolve_refs_simple() -> None:

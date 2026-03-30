@@ -121,7 +121,7 @@ MyAPI = api_make("https://example.com/openapi.yaml")
 
 ## GraphQL schema (SDL or introspection JSON)
 
-Install `graphql-core` (`pip install "dynamicapiclient[graphql]"`). Point `api_make` at a `.graphql` / `.gql` file, a JSON introspection export (`data.__schema` or bare `__schema`), or a URL whose body looks like GraphQL SDL or introspection. You **must** pass `base_url=` to the HTTP server root; SDL does not carry a server URL.
+Install `graphql-core` (`pip install "dynamicapiclient[graphql]"`). Point `api_make` at a `.graphql` / `.gql` file, a JSON introspection export (`data.__schema` or bare `__schema`), or a URL whose body looks like GraphQL SDL or introspection. For local files or payloads with no server URL, pass `base_url=` to the HTTP server root. If you load the schema from an `http(s)` URL, the URL’s **origin** (scheme + host) is used as the default API base unless you pass `base_url=` (which overrides and is logged at INFO).
 
 ```python
 from pathlib import Path

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import httpx
@@ -167,3 +168,96 @@ def test_api_make_swagger2_widget(swagger2_path: Path) -> None:
     w = api.models.Widget.objects.get(1)
     assert w._data["name"] == "w"
     api.close()
+
+
+def test_api_make_openapi_logs_info_when_base_url_override(
+    library_oas3_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="dynamicapiclient.api")
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json=[]))
+    hc = httpx.Client(transport=transport, base_url="https://override.test/v1")
+    api = api_make(
+        library_oas3_path,
+        base_url="https://override.test/v1",
+        http_client=hc,
+    )
+    api.close()
+    assert any("api_make: using base_url=" in r.message for r in caplog.records)
+    assert any("OpenAPI spec defines" in r.message for r in caplog.records)
+
+
+def test_api_make_openapi_no_log_when_using_spec_servers_only(
+    library_oas3_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="dynamicapiclient.api")
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json=[]))
+    hc = httpx.Client(transport=transport, base_url="https://api.example.com/v1")
+    api = api_make(library_oas3_path, http_client=hc)
+    api.close()
+    assert not any("api_make: using base_url=" in r.message for r in caplog.records)
+
+
+def test_api_make_openapi_empty_base_url_override_raises(tmp_path: Path) -> None:
+    p = tmp_path / "o.yaml"
+    p.write_text(
+        "openapi: 3.0.0\n"
+        "info: {title: t, version: '1'}\n"
+        "servers: [{url: 'https://x'}]\n"
+        "paths: {}\n"
+        "components:\n"
+        "  schemas:\n"
+        "    A:\n"
+        "      type: object\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
+        api_make(p, base_url="   ")
+
+
+def test_api_make_swagger2_requires_host_or_base_url(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    p.write_text(
+        '{"swagger":"2.0","info":{"title":"x","version":"1"},"paths":{},'
+        '"definitions":{"W":{"type":"object","properties":{"id":{"type":"integer"}}}}}',
+        encoding="utf-8",
+    )
+    with pytest.raises(DynamicAPIClientSpecError, match="host"):
+        api_make(p)
+
+
+def test_api_make_openapi_requires_base_url_when_spec_has_no_servers(tmp_path: Path) -> None:
+    p = tmp_path / "n.yaml"
+    p.write_text(
+        "openapi: 3.0.0\n"
+        "info: {title: t, version: '1'}\n"
+        "paths: {}\n"
+        "components:\n"
+        "  schemas:\n"
+        "    A:\n"
+        "      type: object\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(DynamicAPIClientSpecError, match="servers"):
+        api_make(p)
+
+
+def test_api_make_openapi_override_logs_when_spec_has_no_server(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    p = tmp_path / "o.yaml"
+    p.write_text(
+        "openapi: 3.0.0\n"
+        "info: {title: t, version: '1'}\n"
+        "paths: {}\n"
+        "components:\n"
+        "  schemas:\n"
+        "    X:\n"
+        "      type: object\n",
+        encoding="utf-8",
+    )
+    caplog.set_level(logging.INFO, logger="dynamicapiclient.api")
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json=[]))
+    hc = httpx.Client(transport=transport, base_url="https://only.override")
+    api = api_make(p, base_url="https://only.override", http_client=hc)
+    api.close()
+    assert any("no server URL" in r.message for r in caplog.records)

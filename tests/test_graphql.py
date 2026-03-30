@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import httpx
@@ -91,6 +92,20 @@ def test_api_make_graphql_from_http_url(library_graphql_path: Path) -> None:
     api.close()
 
 
+@respx.mock
+def test_api_make_graphql_from_http_url_without_base_url_uses_origin(library_graphql_path: Path) -> None:
+    sdl = library_graphql_path.read_text(encoding="utf-8")
+    respx.get("https://spec.example/schema.graphql").mock(
+        return_value=httpx.Response(200, text=sdl)
+    )
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {"authors": []}}))
+    hc = httpx.Client(transport=transport, base_url="https://spec.example")
+    api = api_make("https://spec.example/schema.graphql", http_client=hc)
+    assert api.spec_family == "graphql"
+    list(api.models.Author.objects.all())
+    api.close()
+
+
 def test_api_make_graphql_str_path(library_graphql_path: Path) -> None:
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {"authors": []}}))
     hc = httpx.Client(transport=transport, base_url="https://gql.test")
@@ -102,8 +117,46 @@ def test_api_make_graphql_str_path(library_graphql_path: Path) -> None:
 def test_api_make_graphql_requires_base(tmp_path: Path) -> None:
     p = tmp_path / "s.graphql"
     p.write_text("type Query { x: Int }", encoding="utf-8")
-    with pytest.raises(DynamicAPIClientSpecError, match="base_url"):
+    with pytest.raises(DynamicAPIClientSpecError, match="Pass base_url"):
         api_make(p)
+
+
+def test_api_make_graphql_empty_base_url_override_raises(tmp_path: Path) -> None:
+    p = tmp_path / "s.graphql"
+    p.write_text("type Query { x: Int }", encoding="utf-8")
+    with pytest.raises(DynamicAPIClientSpecError, match="empty"):
+        api_make(p, base_url="   ")
+
+
+def test_api_make_graphql_file_with_base_url_logs_info(
+    library_graphql_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="dynamicapiclient.api")
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {}}))
+    hc = httpx.Client(transport=transport, base_url="https://gql.test")
+    api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
+    api.close()
+    assert any("no HTTP URL in the document" in r.message for r in caplog.records)
+
+
+@respx.mock
+def test_api_make_graphql_http_override_logs_info(
+    library_graphql_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    sdl = library_graphql_path.read_text(encoding="utf-8")
+    respx.get("https://spec.example/schema.graphql").mock(
+        return_value=httpx.Response(200, text=sdl)
+    )
+    caplog.set_level(logging.INFO, logger="dynamicapiclient.api")
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"data": {"authors": []}}))
+    hc = httpx.Client(transport=transport, base_url="https://api.example")
+    api = api_make(
+        "https://spec.example/schema.graphql",
+        base_url="https://api.example",
+        http_client=hc,
+    )
+    api.close()
+    assert any("URL origin" in r.message for r in caplog.records)
 
 
 def test_build_graphql_model_classes_smoke(library_graphql_path: Path) -> None:

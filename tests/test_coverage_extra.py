@@ -301,7 +301,7 @@ def test_openapi_get_base_url_non_spec_error_wrapped(
     def boom(*_a: object, **_k: object) -> None:
         raise ValueError("bad base")
 
-    monkeypatch.setattr(api_mod, "get_base_url", boom)
+    monkeypatch.setattr(api_mod, "openapi_spec_base_url", boom)
     with pytest.raises(DynamicAPIClientSpecError, match="bad base"):
         tr = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
         api_make(p, base_url=None, http_client=httpx.Client(transport=tr))

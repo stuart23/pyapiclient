@@ -9,8 +9,8 @@ from dynamicapiclient.api import api_make
 from dynamicapiclient.exceptions import DynamicAPIClientSpecError
 
 
-def test_api_make_wraps_unexpected_get_base_url_error(library_oas3_path: Path) -> None:
-    with patch("dynamicapiclient.api.get_base_url", side_effect=RuntimeError("boom")):
+def test_api_make_wraps_unexpected_openapi_spec_base_url_error(library_oas3_path: Path) -> None:
+    with patch("dynamicapiclient.api.openapi_spec_base_url", side_effect=RuntimeError("boom")):
         with pytest.raises(DynamicAPIClientSpecError, match="boom"):
             api_make(library_oas3_path)
 
