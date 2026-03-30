@@ -1,4 +1,6 @@
 # Publish dynamicapiclient to PyPI when a GitHub Release is published.
+# Releases (and tags v{version}) can be created automatically by
+# .github/workflows/release-from-version.yml when pyproject.toml changes on main.
 #
 # The value of [project].name in pyproject.toml must match the PyPI project name
 # configured for trusted publishing, or uploads fail with HTTP 400.

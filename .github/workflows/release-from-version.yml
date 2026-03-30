@@ -1,0 +1,58 @@
+# When [project].version changes on main (any edit to pyproject.toml), create a
+# GitHub Release and tag v{version} if that tag does not exist yet. The existing
+# "Publish to PyPI" workflow then runs on release published.
+
+name: Release from pyproject version
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+
+permissions:
+  contents: write
+
+jobs:
+  maybe-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python3 <<'PY'
+          import tomllib
+          from pathlib import Path
+          with Path("pyproject.toml").open("rb") as f:
+              print(tomllib.load(f)["project"]["version"])
+          PY
+          )
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch tags
+        run: git fetch origin --tags
+
+      - name: Check if tag already exists
+        id: tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v${VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${TAG} already exists; skipping release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
