@@ -1,5 +1,8 @@
 # Publish dynamicapiclient to PyPI when a GitHub Release is published.
 #
+# The value of [project].name in pyproject.toml must match the PyPI project name
+# configured for trusted publishing, or uploads fail with HTTP 400.
+#
 # Trusted publishing (recommended): https://docs.pypi.org/trusted-publishers/
 #   PyPI → Your project → Publishing → Add a pending publisher
 #   Provider: GitHub, repo, workflow file: publish-pypi.yml (environment name optional).
