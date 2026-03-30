@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dynamicapiclient"
-version = "0.1.1"
+version = "0.1.2"
 description = "pyAPIClient: Django-like dynamic ORM models generated from OpenAPI 2/3 or GraphQL schemas"
 readme = "README.md"
 requires-python = ">=3.10"
