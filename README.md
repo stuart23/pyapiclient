@@ -21,18 +21,6 @@ Requires Python 3.10+. GraphQL requires the optional `graphql` extra (`graphql-c
 
 **GitHub:** badges and links in this README use the repository name **`dynamicapiclient`**. After you [rename the repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository) on GitHub to match, update **PyPI → Publishing → trusted publisher** with the new repository path if you use OIDC publishing.
 
-### Tests, coverage, and pre-commit
-
-CI-style checks use **≥90%** coverage on `dynamicapiclient` (see `pyproject.toml`). Run:
-
-```bash
-pytest -q --cov=dynamicapiclient --cov-fail-under=90
-```
-
-[GitHub Actions](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/dynamicapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
-
-With a **Git** checkout, install [`pre-commit`](https://pre-commit.com/) (`pip install pre-commit` or use the `dev` extra) and run `pre-commit install` so commits run the same pytest command via [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
-
 ## Quick start (fixture spec)
 
 This repo includes a sample OpenAPI 3 spec at [`tests/fixtures/library_oas3.yaml`](tests/fixtures/library_oas3.yaml). It describes a small “library” API with `Author` and `Book` schemas and paths under `https://api.example.com/v1`.
@@ -100,13 +88,48 @@ MyAPI.close()
 # or: with api_make(...) as MyAPI: ...
 ```
 
-### Headers (e.g. auth)
+## Authentication
+
+DynamicAPIClient does not read OpenAPI `security` / `securitySchemes` or GraphQL custom directives to sign requests for you. **You supply credentials** the same way you would with plain HTTP:
+
+### Default headers on every request
+
+Pass a `headers` dict to `api_make()`. Those headers are sent on **every** REST call and **every** GraphQL POST (the client passes them on each `httpx` request).
 
 ```python
 MyAPI = api_make(
     spec_path,
-    headers={"Authorization": "Bearer YOUR_TOKEN"},
+    headers={"Authorization": "Bearer YOUR_ACCESS_TOKEN"},
 )
+```
+
+Other common patterns:
+
+```python
+# API key in a header
+api_make(spec_path, headers={"X-API-Key": "secret"})
+
+# Basic auth (raw header; or use http_client below)
+import base64
+token = base64.b64encode(b"user:pass").decode()
+api_make(spec_path, headers={"Authorization": f"Basic {token}"})
+```
+
+Use the header names and formats your API expects (many OpenAPI specs document them under `components.securitySchemes`—copy the scheme into `headers` yourself).
+
+### Custom `httpx.Client` (Auth hooks, cookies, proxies)
+
+For flows that fit [`httpx`’s `Auth` API](https://www.python-httpx.org/advanced/authentication/) (e.g. custom signing, OAuth2 helpers from extensions), build an `httpx.Client` and pass `http_client=...` to `api_make`. Keep `base_url` aligned with that client’s base URL. The `headers` argument is still applied on each request, so you can combine default headers with client-level configuration.
+
+```python
+import httpx
+from dynamicapiclient import api_make
+
+client = httpx.Client(
+    base_url="https://api.example.com/v1",
+    headers={"Authorization": "Bearer ..."},
+)
+MyAPI = api_make(spec_path, http_client=client, base_url="https://api.example.com/v1")
 ```
 
 ### Loading from a URL
@@ -133,6 +156,7 @@ GQL = api_make(
     schema_path,
     base_url="https://api.example.com",
     graphql_path="/graphql",  # default; POST JSON { "query", "variables" }
+    headers={"Authorization": "Bearer YOUR_TOKEN"},  # same as OpenAPI
 )
 author = GQL.models.Author.objects.create(name="Ada", email="ada@example.com")
 ```
@@ -153,3 +177,15 @@ If your API uses different names, DynamicAPIClient may not find an operation; yo
 - If the spec does not expose a clear operation for a model, calling the missing operation raises a clear `DynamicAPIClientModelError`.
 
 For full behavior and edge cases, see the test suite under `tests/`.
+
+## Tests, coverage, and pre-commit
+
+CI-style checks use **≥90%** coverage on `dynamicapiclient` (see `pyproject.toml`). Run:
+
+```bash
+pytest -q --cov=dynamicapiclient --cov-fail-under=90
+```
+
+[GitHub Actions](https://github.com/stuart23/dynamicapiclient/actions/workflows/ci.yml) runs the same suite on Python 3.10–3.13 and uploads coverage to [**Codecov**](https://codecov.io/gh/stuart23/dynamicapiclient) via **OIDC** (no `CODECOV_TOKEN` needed on the main repo). Add the project in Codecov once so the badge and graphs populate. Forks or private mirrors may need a **`CODECOV_TOKEN`** secret—see [Codecov’s docs](https://docs.codecov.com/docs/codecov-tokens).
+
+With a **Git** checkout, install [`pre-commit`](https://pre-commit.com/) (`pip install pre-commit` or use the `dev` extra) and run `pre-commit install` so commits run the same pytest command via [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
