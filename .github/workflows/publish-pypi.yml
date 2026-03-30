@@ -12,12 +12,15 @@
 # Token fallback: add a repo secret PYPI_API_TOKEN (PyPI → Account → API tokens) and set:
 #   with:
 #     password: ${{ secrets.PYPI_API_TOKEN }}
+#
+# Manual run: Actions → this workflow → Run workflow (pick branch; default main).
 
 name: Publish to PyPI
 
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
