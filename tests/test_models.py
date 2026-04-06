@@ -17,6 +17,7 @@ from dynamicapiclient.models import (
     expand_path,
 )
 from dynamicapiclient.routing import ModelBindings, OperationBinding
+from dynamicapiclient.validation import validate_payload
 
 
 def _author_schema() -> dict:
@@ -116,6 +117,74 @@ def test_build_request_body_unknown_field() -> None:
 def test_build_request_body_ok() -> None:
     body = build_request_body(_author_schema(), {"name": "Z"})
     assert body == {"name": "Z"}
+
+
+def test_validate_request_body_missing_required_after_build() -> None:
+    schema = _author_schema()
+    body = build_request_body(schema, {})
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'name'"):
+        validate_payload(schema, body, context="request body")
+
+
+def test_manager_create_missing_required_field() -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    client = HTTPClient("https://api", client=httpx.Client(transport=transport))
+    m = _make_author_model(client)
+    m.objects = Manager(m)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'name'"):
+        m.objects.create(email="e@e.e")
+
+
+def _author_schema_name_and_email_required() -> dict:
+    return {
+        "type": "object",
+        "required": ["name", "email"],
+        "properties": {
+            "id": {"type": "integer"},
+            "name": {"type": "string"},
+            "email": {"type": "string"},
+        },
+    }
+
+
+def test_manager_create_missing_second_required_field() -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    client = HTTPClient("https://api", client=httpx.Client(transport=transport))
+    m = type(
+        "Author",
+        (),
+        {
+            "_dynamicapiclient_schema": _author_schema_name_and_email_required(),
+            "_dynamicapiclient_bindings": ModelBindings(
+                create=OperationBinding("/authors", "post"),
+            ),
+            "_dynamicapiclient_client": client,
+        },
+    )
+    m.objects = Manager(m)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        m.objects.create(name="N")
+
+
+def test_manager_update_merged_body_missing_required_field() -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    client = HTTPClient("https://api", client=httpx.Client(transport=transport))
+    m = type(
+        "Author",
+        (),
+        {
+            "_dynamicapiclient_schema": _author_schema_name_and_email_required(),
+            "_dynamicapiclient_bindings": ModelBindings(
+                create=OperationBinding("/authors", "post"),
+                update=OperationBinding("/authors/{id}", "patch", path_param_name="id"),
+            ),
+            "_dynamicapiclient_client": client,
+        },
+    )
+    m.objects = Manager(m)
+    inst = ModelInstance(m, {"id": 1, "name": "A"})
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        m.objects.update(inst, name="B")
 
 
 def test_model_instance_repr() -> None:
