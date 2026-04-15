@@ -8,7 +8,7 @@ import pytest
 
 from dynamicapiclient import api_make
 from dynamicapiclient.api import ModelsNamespace, _sanitize_identifier
-from dynamicapiclient.exceptions import DynamicAPIClientSpecError
+from dynamicapiclient.exceptions import DynamicAPIClientSpecError, DynamicAPIClientValidationError
 
 
 def test_sanitize_identifier_basic() -> None:
@@ -84,6 +84,36 @@ def test_api_make_minimal_crud(library_oas3_path: Path) -> None:
     api = api_make(library_oas3_path, http_client=hc)
     a = api.models.Author.objects.create(name="N", email="e@e.e")
     assert a.pk == 1
+    api.close()
+
+
+def test_api_make_author_create_missing_required_email(library_oas3_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://api.example.com/v1")
+    api = api_make(library_oas3_path, http_client=hc)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        api.models.Author.objects.create(name="N")
+    api.close()
+
+
+def test_api_make_book_create_missing_required_author_id(library_oas3_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://api.example.com/v1")
+    api = api_make(library_oas3_path, http_client=hc)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'author_id'"):
+        api.models.Book.objects.create(title="T")
+    api.close()
+
+
+def test_api_make_author_update_merged_missing_required_email(library_oas3_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://api.example.com/v1")
+    api = api_make(library_oas3_path, http_client=hc)
+    from dynamicapiclient.models import ModelInstance
+
+    inst = ModelInstance(api.models.Author, {"id": 1, "name": "A"})
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        api.models.Author.objects.update(inst, name="B")
     api.close()
 
 
@@ -167,6 +197,15 @@ def test_api_make_swagger2_widget(swagger2_path: Path) -> None:
     api = api_make(swagger2_path, http_client=hc)
     w = api.models.Widget.objects.get(1)
     assert w._data["name"] == "w"
+    api.close()
+
+
+def test_api_make_swagger2_widget_create_missing_required_name(swagger2_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://legacy.example.com/api")
+    api = api_make(swagger2_path, http_client=hc)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'name'"):
+        api.models.Widget.objects.create()
     api.close()
 
 

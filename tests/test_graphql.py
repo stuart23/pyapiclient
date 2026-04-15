@@ -9,7 +9,11 @@ import pytest
 import respx
 
 from dynamicapiclient.api import api_make
-from dynamicapiclient.exceptions import DynamicAPIClientModelError, DynamicAPIClientSpecError
+from dynamicapiclient.exceptions import (
+    DynamicAPIClientModelError,
+    DynamicAPIClientSpecError,
+    DynamicAPIClientValidationError,
+)
 from dynamicapiclient.graphql_support import (
     build_graphql_model_classes,
     looks_like_graphql_sdl,
@@ -313,6 +317,28 @@ def test_input_json_schema_scalar_variants() -> None:
     js = _input_to_json_schema(inp)
     assert js["properties"]["price"]["type"] == "number"
     assert js["properties"]["n"]["type"] == "integer"
+    assert set(js.get("required", [])) == {"n", "ok"}
+
+
+def test_graphql_author_create_missing_required_email(library_graphql_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://gql.test")
+    api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        api.models.Author.objects.create(name="A")
+    api.close()
+
+
+def test_graphql_author_update_merged_missing_required_email(library_graphql_path: Path) -> None:
+    transport = httpx.MockTransport(lambda r: httpx.Response(500))
+    hc = httpx.Client(transport=transport, base_url="https://gql.test")
+    api = api_make(library_graphql_path, base_url="https://gql.test", http_client=hc)
+    from dynamicapiclient.models import ModelInstance
+
+    inst = ModelInstance(api.models.Author, {"id": "1", "name": "A"})
+    with pytest.raises(DynamicAPIClientValidationError, match="missing required field 'email'"):
+        api.models.Author.objects.update(inst, name="B")
+    api.close()
 
 
 def test_graphql_fetch_list_not_array(library_graphql_path: Path) -> None:
