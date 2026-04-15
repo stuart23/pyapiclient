@@ -1,6 +1,7 @@
 """Dynamic ORM-style API clients from OpenAPI 2/3 or GraphQL schemas."""
 
 from dynamicapiclient.api import api_make
+from dynamicapiclient.validation import relax_openapi_missing_required
 from dynamicapiclient.exceptions import (
     DynamicAPIClientConfigurationError,
     DynamicAPIClientError,
@@ -12,6 +13,7 @@ from dynamicapiclient.exceptions import (
 
 __all__ = [
     "api_make",
+    "relax_openapi_missing_required",
     "DynamicAPIClientError",
     "DynamicAPIClientSpecError",
     "DynamicAPIClientConfigurationError",

@@ -76,7 +76,7 @@ jobs:
       - name: Run Airflow integration tests
         env:
           RUN_AIRFLOW_INTEGRATION: "1"
-          AIRFLOW_API_BASE_URL: "http://127.0.0.1:8080/api/v1"
+          AIRFLOW_ORIGIN: "http://127.0.0.1:8080"
         run: >
           pytest tests/integration
           -q

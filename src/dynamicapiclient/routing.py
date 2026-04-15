@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from dynamicapiclient.exceptions import DynamicAPIClientSpecError
+from dynamicapiclient.spec import get_schemas
 
 
 @dataclass
@@ -27,6 +28,8 @@ class ModelBindings:
     delete: OperationBinding | None = None
     # query param names supported on list (from OpenAPI parameters)
     list_query_params: list[str] = field(default_factory=list)
+    # When POST response schema differs from request body (e.g. *Body vs *Response).
+    create_response_ref: str | None = None
 
 
 def _ref_to_schema_name(ref: str, family: str) -> str | None:
@@ -101,8 +104,36 @@ def _response_schema_ref(op: dict[str, Any], family: str) -> str | None:
     return None
 
 
-def _list_item_ref_from_response(op: dict[str, Any], family: str) -> str | None:
-    """If 200 response is array of $ref or { items: array of $ref }, return item schema name."""
+def _deref_schema_node(
+    schema: dict[str, Any] | None,
+    family: str,
+    defs: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Resolve leading ``$ref`` chains against ``defs`` (components/schemas or definitions)."""
+    if not isinstance(schema, dict):
+        return {}
+    if not defs:
+        return schema
+    seen: set[str] = set()
+    cur: Any = schema
+    while isinstance(cur, dict) and "$ref" in cur:
+        name = _ref_to_schema_name(cur["$ref"], family)
+        if not name or name in seen or name not in defs:
+            break
+        seen.add(name)
+        nxt = defs[name]
+        if not isinstance(nxt, dict):
+            return {}
+        cur = nxt
+    return cur if isinstance(cur, dict) else {}
+
+
+def _list_item_ref_from_response(
+    op: dict[str, Any],
+    family: str,
+    defs: dict[str, Any] | None = None,
+) -> str | None:
+    """If 200 response is array of $ref or a wrapper object with an array-of-$ref field, return item name."""
     responses = op.get("responses")
     if not isinstance(responses, dict):
         return None
@@ -123,6 +154,7 @@ def _list_item_ref_from_response(op: dict[str, Any], family: str) -> str | None:
                 schema = r["schema"]
         if not schema:
             continue
+        schema = _deref_schema_node(schema, family, defs)
         if schema.get("type") == "array":
             items = schema.get("items")
             if isinstance(items, dict) and "$ref" in items:
@@ -135,6 +167,14 @@ def _list_item_ref_from_response(op: dict[str, Any], family: str) -> str | None:
                     return _ref_to_schema_name(items["$ref"], family)
                 if items.get("type") == "array":
                     it = items.get("items")
+                    if isinstance(it, dict) and "$ref" in it:
+                        return _ref_to_schema_name(it["$ref"], family)
+            for _key, pschema in props.items():
+                if not isinstance(pschema, dict):
+                    continue
+                node = _deref_schema_node(pschema, family, defs)
+                if node.get("type") == "array":
+                    it = node.get("items")
                     if isinstance(it, dict) and "$ref" in it:
                         return _ref_to_schema_name(it["$ref"], family)
     return None
@@ -176,6 +216,7 @@ def build_bindings(spec: dict[str, Any], family: str, schema_names: set[str]) ->
         raise DynamicAPIClientSpecError("'paths' must be an object.")
 
     bindings: dict[str, ModelBindings] = {n: ModelBindings() for n in schema_names}
+    defs = get_schemas(spec, family)
 
     for path, path_item in paths.items():
         if not isinstance(path_item, dict):
@@ -191,11 +232,14 @@ def build_bindings(spec: dict[str, Any], family: str, schema_names: set[str]) ->
 
             body_ref = _operation_body_schema_ref(op, family) if method in ("post", "put", "patch") else None
             resp_ref = _response_schema_ref(op, family)
-            list_ref = _list_item_ref_from_response(op, family)
+            list_ref = _list_item_ref_from_response(op, family, defs)
 
             if method == "post" and body_ref and body_ref in bindings:
                 b = bindings[body_ref]
                 b.create = OperationBinding(path_template=path, method="post")
+                crsp = _response_schema_ref(op, family)
+                if crsp and crsp != body_ref:
+                    b.create_response_ref = crsp
 
             if method == "get":
                 if has_path_var and resp_ref and resp_ref in bindings:

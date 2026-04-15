@@ -1,11 +1,14 @@
-# Minimal Airflow 2.10 + Postgres for integration tests (REST API only).
+# Minimal Apache Airflow 3.2.0 + Postgres for integration tests (public REST API).
+# API is served by `airflow api-server` (Airflow 3); health is GET /api/v2/monitor/health.
 # Usage: docker compose -f docker-compose.airflow.yml up -d --wait
 ---
 x-airflow-runtime: &airflow-runtime
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-  AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+  # Required so `_AIRFLOW_WWW_USER_CREATE` runs and `/auth/token` accepts password login.
+  AIRFLOW__CORE__AUTH_MANAGER: >-
+    airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
 services:
   postgres:
@@ -22,7 +25,7 @@ services:
       start_period: 5s
 
   airflow-init:
-    image: apache/airflow:2.10.5-python3.12
+    image: apache/airflow:3.2.0-python3.12
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,8 +41,8 @@ services:
       - -c
       - exec /entrypoint airflow version
 
-  airflow-webserver:
-    image: apache/airflow:2.10.5-python3.12
+  airflow-apiserver:
+    image: apache/airflow:3.2.0-python3.12
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -48,12 +51,12 @@ services:
     environment: *airflow-runtime
     ports:
       - "127.0.0.1:8080:8080"
-    command: webserver
+    command: api-server
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'curl -fsS -u airflow:airflow "http://127.0.0.1:8080/api/v1/health" >/dev/null',
+          "curl -fsS http://127.0.0.1:8080/api/v2/monitor/health >/dev/null",
         ]
       interval: 10s
       timeout: 10s

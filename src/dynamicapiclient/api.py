@@ -215,6 +215,11 @@ def _api_from_openapi_spec(
 
         bindings = bindings_map[raw_name]
 
+        crs: dict[str, Any] | None = None
+        crn = bindings.create_response_ref
+        if crn and crn in schemas_raw:
+            crs = resolved_schema(spec, crn, schemas_raw[crn])
+
         model_cls = type(
             raw_name,
             (),
@@ -223,6 +228,7 @@ def _api_from_openapi_spec(
                 "_dynamicapiclient_schema": res_schema,
                 "_dynamicapiclient_bindings": bindings,
                 "_dynamicapiclient_client": http,
+                "_dynamicapiclient_create_response_schema": crs,
                 "__doc__": f"Dynamic model for OpenAPI schema {raw_name!r}.",
             },
         )
