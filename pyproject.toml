@@ -33,9 +33,10 @@ packages = ["src/dynamicapiclient"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-q --cov=dynamicapiclient --cov-report=term-missing --cov-fail-under=90"
+addopts = "-q --cov=dynamicapiclient --cov-report=term-missing --cov-fail-under=90 --ignore=tests/integration"
 markers = [
-    "network: outbound HTTPS (e.g. fetching a public spec URL)",
+  "network: outbound HTTPS (e.g. fetching a public spec URL)",
+  "integration: live service tests (e.g. Airflow); not run by default (see tests/integration/)",
 ]
 
 [tool.coverage.run]

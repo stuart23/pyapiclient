@@ -74,6 +74,35 @@ def test_response_schema_ref_swagger2() -> None:
     assert _response_schema_ref(op, "swagger2") == "W"
 
 
+def test_list_item_ref_wrapped_collection_with_ref() -> None:
+    """Wrapper object is only reachable via ``$ref`` (e.g. OpenAPI 3 collection envelopes)."""
+    defs = {
+        "DAGCollectionResponse": {
+            "type": "object",
+            "properties": {
+                "dags": {
+                    "type": "array",
+                    "items": {"$ref": "#/components/schemas/DAGResponse"},
+                },
+                "total_entries": {"type": "integer"},
+            },
+        },
+        "DAGResponse": {"type": "object", "properties": {"dag_id": {"type": "string"}}},
+    }
+    op = {
+        "responses": {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/DAGCollectionResponse"},
+                    }
+                }
+            }
+        }
+    }
+    assert _list_item_ref_from_response(op, "openapi3", defs) == "DAGResponse"
+
+
 def test_list_item_ref_wrapper_object() -> None:
     op = {
         "responses": {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -56,6 +57,48 @@ def test_expand_path_ok() -> None:
     assert expand_path("/a/{x}/b", {"x": 1}) == "/a/1/b"
 
 
+def test_expand_path_encodes_path_segment() -> None:
+    assert expand_path("/dags/{dag_id}", {"dag_id": "a/b"}) == "/dags/" + quote("a/b", safe="")
+
+
+def test_model_instance_pk_from_retrieve_path_param() -> None:
+    c = HTTPClient("https://x", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))))
+    b = ModelBindings(
+        retrieve=OperationBinding("/v/{variable_key}", "get", path_param_name="variable_key"),
+    )
+    m = type(
+        "Var",
+        (),
+        {
+            "_dynamicapiclient_schema": {},
+            "_dynamicapiclient_bindings": b,
+            "_dynamicapiclient_client": c,
+        },
+    )
+    m.objects = Manager(m)
+    inst = ModelInstance(m, {"key": "mykey", "value": "v"})
+    assert inst.pk == "mykey"
+
+
+def test_model_instance_pk_pool_name_from_name_alias() -> None:
+    c = HTTPClient("https://x", client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))))
+    b = ModelBindings(
+        retrieve=OperationBinding("/pools/{pool_name}", "get", path_param_name="pool_name"),
+    )
+    m = type(
+        "Pool",
+        (),
+        {
+            "_dynamicapiclient_schema": {},
+            "_dynamicapiclient_bindings": b,
+            "_dynamicapiclient_client": c,
+        },
+    )
+    m.objects = Manager(m)
+    inst = ModelInstance(m, {"name": "default_pool", "slots": 1})
+    assert inst.pk == "default_pool"
+
+
 def test_expand_path_missing_placeholder() -> None:
     with pytest.raises(DynamicAPIClientModelError, match="Could not expand"):
         expand_path("/a/{missing}", {})
@@ -79,6 +122,17 @@ def test_normalize_list_records_key() -> None:
 
 def test_normalize_list_first_array_in_dict() -> None:
     assert _normalize_list_payload({"meta": 1, "rows": [2, 3]}) == [2, 3]
+
+
+def test_normalize_list_named_collection_key() -> None:
+    assert _normalize_list_payload({"dags": [{"dag_id": "d"}], "total_entries": 1}) == [{"dag_id": "d"}]
+
+
+def test_normalize_list_prefers_longest_object_array() -> None:
+    assert _normalize_list_payload({"meta": [{"k": 1}], "dags": [{"dag_id": "a"}, {"dag_id": "b"}]}) == [
+        {"dag_id": "a"},
+        {"dag_id": "b"},
+    ]
 
 
 def test_normalize_list_bad() -> None:

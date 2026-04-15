@@ -2,9 +2,38 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from dynamicapiclient.exceptions import DynamicAPIClientValidationError
+
+_relax_missing_required_depth = 0
+
+
+@contextmanager
+def relax_openapi_missing_required() -> Iterator[None]:
+    """
+    While active, do not treat absent ``required`` object keys as errors for response-like
+    ``context`` strings (e.g. ``response body``, ``list item``, and nested ``response body.*``).
+
+    Optional escape hatch when generated OpenAPI marks keys ``required`` but a server omits
+    them on responses (use sparingly; default tests should validate strictly).
+    """
+    global _relax_missing_required_depth
+    _relax_missing_required_depth += 1
+    try:
+        yield
+    finally:
+        _relax_missing_required_depth -= 1
+
+
+def _relaxing_missing_required() -> bool:
+    return _relax_missing_required_depth > 0
+
+
+def _relaxed_response_context(context: str) -> bool:
+    return context.startswith("response body") or context.startswith("list item")
 
 
 def _type_ok(value: Any, schema: dict[str, Any]) -> bool:
@@ -49,6 +78,8 @@ def validate_payload(schema: dict[str, Any], data: Any, *, context: str) -> None
         errors: list[str] = []
         for key in req_list:
             if key not in data or data[key] is None:
+                if _relaxing_missing_required() and _relaxed_response_context(context):
+                    continue
                 errors.append(f"missing required field {key!r}")
         for key, val in data.items():
             if key not in props:

@@ -3,13 +3,21 @@ from __future__ import annotations
 import pytest
 
 from dynamicapiclient.exceptions import DynamicAPIClientValidationError
-from dynamicapiclient.validation import validate_payload
+from dynamicapiclient.validation import relax_openapi_missing_required, validate_payload
 
 
 def test_validate_object_required_missing() -> None:
     schema = {"type": "object", "required": ["a"], "properties": {"a": {"type": "string"}}}
     with pytest.raises(DynamicAPIClientValidationError, match="missing"):
         validate_payload(schema, {}, context="body")
+
+
+def test_relax_openapi_missing_required_allows_absent_keys_on_response() -> None:
+    schema = {"type": "object", "required": ["a"], "properties": {"a": {"type": "string"}}}
+    with relax_openapi_missing_required():
+        validate_payload(schema, {}, context="response body")
+    with pytest.raises(DynamicAPIClientValidationError, match="missing"):
+        validate_payload(schema, {}, context="request body")
 
 
 def test_validate_object_wrong_root_type() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any, Iterator, Mapping
+from urllib.parse import quote
 
 from dynamicapiclient.client import HTTPClient
 from dynamicapiclient.exceptions import DynamicAPIClientModelError, DynamicAPIClientValidationError
@@ -20,7 +21,7 @@ from dynamicapiclient.validation import validate_payload
 def expand_path(template: str, values: Mapping[str, Any]) -> str:
     out = template
     for key, val in values.items():
-        out = out.replace("{" + key + "}", str(val))
+        out = out.replace("{" + key + "}", quote(str(val), safe=""))
     if re.search(r"\{[^}]+\}", out):
         missing = re.findall(r"\{([^}]+)\}", out)
         raise DynamicAPIClientModelError(
@@ -35,10 +36,35 @@ def _normalize_list_payload(raw: Any) -> list[Any]:
     if isinstance(raw, list):
         return raw
     if isinstance(raw, dict):
-        for key in ("items", "results", "data", "records"):
+        for key in (
+            "items",
+            "results",
+            "data",
+            "records",
+            "dags",
+            "pools",
+            "variables",
+            "connections",
+            "assets",
+            "event_logs",
+            "import_errors",
+            "dag_runs",
+            "task_instances",
+            "plugins",
+            "providers",
+            "dag_warnings",
+            "backfills",
+        ):
             v = raw.get(key)
             if isinstance(v, list):
                 return v
+        best: list[Any] | None = None
+        for v in raw.values():
+            if isinstance(v, list) and v and all(isinstance(i, dict) for i in v):
+                if best is None or len(v) > len(best):
+                    best = v
+        if best is not None:
+            return best
         for v in raw.values():
             if isinstance(v, list):
                 return v
@@ -90,6 +116,21 @@ class ModelInstance:
         d = self._data
         if "id" in d and d["id"] is not None:
             return d["id"]
+        if getattr(self._model, "_dynamicapiclient_kind", "openapi") == "graphql":
+            return None
+        mgr = getattr(self._model, "objects", None)
+        if mgr is None:
+            return None
+        b = mgr._bindings()
+        r = b.retrieve
+        if r and r.path_param_name:
+            key = r.path_param_name
+            if key in d and d[key] is not None:
+                return d[key]
+            if key == "pool_name" and d.get("name") is not None:
+                return d["name"]
+            if key == "variable_key" and d.get("key") is not None:
+                return d["key"]
         return None
 
     def __repr__(self) -> str:
@@ -182,7 +223,12 @@ class Manager:
             raise DynamicAPIClientModelError("Create returned empty body; cannot build model instance.")
         if not isinstance(raw, dict):
             raise DynamicAPIClientModelError(f"Create expected object JSON, got {type(raw).__name__}.")
-        validate_payload(schema, raw, context="response body")
+        resp_schema = getattr(self._model, "_dynamicapiclient_create_response_schema", None)
+        validate_payload(
+            resp_schema if resp_schema is not None else schema,
+            raw,
+            context="response body",
+        )
         return ModelInstance(self._model, raw)
 
     def _graphql_create(self, **kwargs: Any) -> ModelInstance:
